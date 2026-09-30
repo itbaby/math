@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>绝对值 · 数轴上的距离魔法</title>
+<style>
+  :root{
+    --bg:#0a1120; --panel:#101a30; --panel2:#0c1424; --line:#26324d; --line2:#33415c;
+    --ink:#e8ecf4; --muted:#9aa7bd;
+    --amber:rgb(251,191,36); --green:rgb(74,222,128); --pink:rgb(244,114,182); --blue:rgb(96,165,250);
+  }
+  *{margin:0; padding:0; box-sizing:border-box}
+  body{
+    background:radial-gradient(1100px 600px at 50% -10%, #16233f 0%, var(--bg) 60%);
+    color:var(--ink);
+    font-family:"PingFang SC","Microsoft YaHei","Noto Sans SC",system-ui,-apple-system,sans-serif;
+    min-height:100vh; padding:26px 18px 120px;
+  }
+  main{max-width:980px; margin:0 auto}
+  .topbar{text-align:center; margin-bottom:16px}
+  .topbar h1{font-size:30px; letter-spacing:1px}
+  .topbar .pipe{color:var(--amber); font-family:ui-monospace,Menlo,Consolas,monospace}
+  .topbar .sub{color:var(--muted); font-size:14px; margin-top:6px}
+
+  .scene{display:none}
+  .scene.active{display:block; animation:fadeIn .35s ease}
+  .panel{
+    background:linear-gradient(180deg,var(--panel),#0d1526);
+    border:2px solid var(--line); border-radius:22px;
+    padding:26px 28px; box-shadow:0 18px 50px rgba(0,0,0,.35);
+  }
+  h2{font-size:24px; margin-bottom:10px}
+  h3{font-size:18px; margin:4px 0 8px}
+  .lead{color:var(--muted); font-size:15.5px; line-height:1.9}
+  .lead b, .note b, .case b{color:var(--ink)}
+  .am{color:var(--amber)} .gr{color:var(--green)} .pk{color:var(--pink)}
+  .hl{color:var(--amber)}
+  .hlb{background:rgba(74,222,128,.16); color:var(--green); padding:1px 7px; border-radius:7px}
+  .muted{color:var(--muted); font-weight:400; font-size:14px}
+  .note{min-height:26px; text-align:center; color:var(--ink); background:var(--panel2);
+    border:2px dashed var(--line2); border-radius:12px; padding:10px 14px; margin-top:12px; font-size:15.5px; line-height:1.8}
+  .note.big{font-size:17px}
+  .divider{height:1px; background:var(--line); margin:22px 0}
+  .ctrl{display:flex; justify-content:center; gap:12px; flex-wrap:wrap; margin-top:16px}
+  .btn{
+    background:var(--panel2); border:2px solid var(--line2); color:var(--ink);
+    border-radius:12px; padding:10px 18px; font-size:16px; cursor:pointer; transition:.15s;
+    font-family:inherit;
+  }
+  .btn:hover{border-color:var(--amber); transform:translateY(-1px)}
+  .btn.primary{background:linear-gradient(135deg,#f59e0b,#fbbf24); color:#1a1206; font-weight:800; border-color:transparent}
+  .btn:disabled{opacity:.45; cursor:not-allowed; transform:none}
+  .chipbar,.sliderbar,.exbar{display:flex; justify-content:center; align-items:center; gap:12px; flex-wrap:wrap; margin-top:14px}
+  .sliderbar .lab{font-weight:800; font-size:17px}
+  .chip{background:var(--panel2); border:2px solid var(--line2); border-radius:999px; padding:6px 16px; font-size:17px; font-weight:700}
+  .chip.amber{border-color:rgba(251,191,36,.6)} .chip.pink{border-color:rgba(244,114,182,.6)}
+  .toggle{display:flex; align-items:center; gap:7px; color:var(--muted); font-size:14.5px; cursor:pointer}
+  input[type=range]{accent-color:#fbbf24; width:230px}
+
+  /* ---------- 数轴 ---------- */
+  .numline{display:block; width:100%; max-width:880px; margin:16px auto;
+    user-select:none; -webkit-user-select:none}
+  .axis{stroke:#5b6b87; stroke-width:3; stroke-linecap:round}
+  .axisarrow{fill:#5b6b87}
+  .tick{stroke:#5b6b87; stroke-width:2}
+  .tick.z{stroke:#e8ecf4; stroke-width:3.5}
+  .ticklab{fill:#9aa7bd; font-size:15px; font-weight:600; font-family:ui-monospace,Menlo,Consolas,monospace}
+  .ticklab.z{fill:#e8ecf4; font-weight:800}
+  .pt{fill:var(--blue); stroke:#dbeafe; stroke-width:3; filter:drop-shadow(0 2px 6px rgba(96,165,250,.45))}
+  .pt.ghost{fill:var(--pink); stroke:#fbcfe8}
+  .pt.good{fill:var(--green); stroke:#dcfce7}
+  .pt.bad{fill:#ef4444; stroke:#fecaca}
+  .ptlab{fill:#e8ecf4; font-size:18px; font-weight:800; text-anchor:middle;
+    font-family:ui-monospace,Menlo,Consolas,monospace}
+  .ptlab.am{fill:var(--amber)} .ptlab.pk{fill:var(--pink)} .ptlab.gr{fill:var(--green)}
+  .dbar{stroke-width:9; stroke-linecap:round}
+  .dbar.amber{stroke:var(--amber)} .dbar.pink{stroke:var(--pink)} .dbar.green{stroke:var(--green)}
+  .dbar.ghost{stroke-dasharray:7 7; stroke-width:6; opacity:.85}
+  .barlab{font-size:15px; font-weight:800; text-anchor:middle;
+    font-family:ui-monospace,Menlo,Consolas,monospace}
+  .barlab.am{fill:var(--amber)} .barlab.pk{fill:var(--pink)} .barlab.gr{fill:var(--green)}
+  .placelab{font-size:30px; text-anchor:middle}
+  .placename{fill:#9aa7bd; font-size:13px; font-weight:700; text-anchor:middle}
+  .walker{font-size:34px; text-anchor:middle; transform-box:fill-box; transform-origin:center;
+    transition:transform 1.1s cubic-bezier(.45,.05,.3,1)}
+  .ring{fill:none; stroke:var(--green); stroke-width:3; stroke-dasharray:5 5}
+  .regionseg{stroke-width:14; opacity:.18; stroke-linecap:butt}
+  .regionseg.on{opacity:.8}
+  .regionseg.r1{stroke:var(--pink)} .regionseg.r2{stroke:var(--green)} .regionseg.r3{stroke:#60a5fa}
+  .zeromark{fill:#0a1120; stroke:var(--amber); stroke-width:3}
+
+  /* ---------- 场景0 ---------- */
+  .walkread{margin-top:12px; text-align:center; font-size:16.5px; min-height:26px}
+  .verdict{display:none; margin-top:14px; text-align:center; font-size:17px;
+    background:rgba(74,222,128,.1); border:2px solid var(--green); border-radius:14px;
+    padding:14px; line-height:2}
+  .verdict.show{display:block}
+
+  /* ---------- 场景2 翻卡 ---------- */
+  .cards3{display:flex; gap:18px; justify-content:center; margin:20px 0; flex-wrap:wrap}
+  .fcard{width:185px; height:130px; perspective:800px; cursor:pointer}
+  .fcard .inner{position:relative; width:100%; height:100%; transform-style:preserve-3d; transition:transform .55s}
+  .fcard.flip .inner{transform:rotateY(180deg)}
+  .fcard .front,.fcard .back{position:absolute; inset:0; backface-visibility:hidden; border-radius:16px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px}
+  .fcard .front{background:var(--panel2); border:2px solid var(--line2); font-size:30px; font-weight:800;
+    font-family:ui-monospace,Menlo,Consolas,monospace}
+  .fcard .front::after{content:"👆 点我"; font-size:12px; color:var(--muted); font-weight:400;
+    font-family:"PingFang SC","Microsoft YaHei",sans-serif}
+  .fcard .back{background:rgba(74,222,128,.12); border:2px solid var(--green); transform:rotateY(180deg);
+    font-size:44px; color:var(--green); font-weight:900}
+  .fcard .back .why{font-size:12.5px; color:var(--muted); font-weight:600; font-family:inherit}
+  .rulebox{display:none; max-width:640px; margin:6px auto 0; text-align:left}
+  .rulebox.show{display:block}
+  .rline{background:var(--panel2); border:2px solid var(--line2); border-radius:12px;
+    padding:10px 16px; margin-top:8px; font-size:15.5px; line-height:1.8}
+  .rline.big{border-color:rgba(74,222,128,.55); background:rgba(74,222,128,.08); font-size:16.5px}
+
+  /* ---------- 场景3 步进 ---------- */
+  .calchead{font-size:23px; font-weight:800; text-align:center; margin:12px 0 14px;
+    font-family:ui-monospace,Menlo,Consolas,monospace}
+  .steps{display:flex; flex-direction:column; gap:8px; max-width:660px; margin:0 auto}
+  .cline{display:flex; gap:12px; align-items:baseline; background:var(--panel2);
+    border:2px solid var(--line2); border-radius:12px; padding:10px 14px;
+    opacity:0; transform:translateY(8px); transition:.3s; font-size:16px; line-height:1.8}
+  .cline.show{opacity:1; transform:none}
+  .cline .ct{flex:none; font-size:13px; font-weight:800; color:var(--amber);
+    border:1.5px solid rgba(251,191,36,.5); border-radius:8px; padding:2px 9px}
+  .cline.res{border-color:var(--green); background:rgba(74,222,128,.08)}
+  .cline.res .ct{color:var(--green); border-color:rgba(74,222,128,.5)}
+  .big{font-size:20px}
+
+  /* ---------- 场景4 条形 ---------- */
+  .bars{max-width:520px; margin:14px auto; display:flex; flex-direction:column; gap:10px}
+  .nbar{display:flex; align-items:center; gap:10px}
+  .nbar .lab{width:36px; font-weight:800; font-family:ui-monospace,Menlo,Consolas,monospace}
+  .nbar .track{flex:1; height:18px; background:var(--panel2); border:2px solid var(--line2);
+    border-radius:999px; overflow:hidden}
+  .nbar .fill{height:100%; border-radius:999px}
+  .nbar .fill.amber{background:var(--amber)} .nbar .fill.pink{background:var(--pink)}
+  .nbar .num{width:28px; text-align:right; font-weight:800}
+
+  /* ---------- 场景5 ---------- */
+  .cmpout{max-width:700px; margin:12px auto 0; display:flex; flex-direction:column; gap:8px}
+
+  /* ---------- 场景6 游戏 ---------- */
+  #gQ{font-size:18px; text-align:center; margin:6px 0}
+  .gstat{display:flex; gap:18px; justify-content:center; align-items:center; margin-top:10px; flex-wrap:wrap}
+  #gStars{font-size:18px}
+  #gMsg{color:var(--muted); font-size:15px}
+  .hintbox{display:none; text-align:center; color:var(--amber); background:rgba(251,191,36,.08);
+    border:1.5px dashed rgba(251,191,36,.5); border-radius:10px; padding:9px 14px;
+    margin-top:10px; font-size:14.5px}
+  .hintbox.show{display:block}
+
+  /* ---------- 场景7 分类讨论 ---------- */
+  .casecol{display:flex; flex-direction:column; max-width:700px; margin:14px auto 0}
+  .case{border-left:6px solid var(--line2); background:var(--panel2); border-radius:12px;
+    padding:10px 16px; margin-top:10px; opacity:0; transform:translateY(8px); transition:.35s;
+    font-size:15.5px; line-height:1.9}
+  .case.show{opacity:1; transform:none}
+  .case.ok{border-left-color:var(--green)}
+  .case.warn{border-left-color:var(--pink)}
+  .case.info{border-left-color:var(--blue)}
+  .case.res{border-left-color:var(--amber); background:rgba(251,191,36,.07)}
+  .ctag{font-weight:800; margin-bottom:2px}
+  .case.ok .ctag{color:var(--green)} .case.warn .ctag{color:var(--pink)}
+  .case.info .ctag{color:var(--blue)} .case.res .ctag{color:var(--amber)}
+  .cbody{color:var(--ink)}
+
+  /* ---------- 场景8 分段 ---------- */
+  .livebox{background:var(--panel2); border:2px solid var(--line2); border-radius:12px;
+    padding:12px 18px; margin-top:14px; line-height:2; font-size:16px;
+    font-family:ui-monospace,Menlo,Consolas,monospace}
+  .livebox .lres{color:var(--green); font-weight:700}
+  .regiontable{display:flex; flex-direction:column; gap:8px; margin-top:14px}
+  .rrow{display:grid; grid-template-columns:130px 1fr auto; gap:10px; align-items:center;
+    background:var(--panel2); border:2px solid var(--line2); border-radius:12px;
+    padding:9px 14px; font-size:15px; transition:.2s; line-height:1.7}
+  .rrow.on{border-color:var(--amber); background:rgba(251,191,36,.09)}
+  .rr{font-weight:800}
+  .rf{font-family:ui-monospace,Menlo,Consolas,monospace; color:var(--green); font-weight:700; white-space:nowrap}
+  .hint2{color:var(--muted); font-size:13.5px; text-align:center; margin-top:10px; line-height:1.8}
+
+  /* ---------- 场景9 总结 ---------- */
+  .sumgrid{display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:12px; margin:16px 0}
+  .scard{background:var(--panel2); border:2px solid var(--line2); border-radius:14px;
+    padding:14px; font-size:15px; line-height:1.9}
+  .scard b{color:var(--amber)}
+  .method{background:rgba(74,222,128,.09); border:2px dashed var(--green); border-radius:14px;
+    padding:14px 18px; text-align:center; font-size:16px; line-height:2; margin:10px 0}
+  .homework{background:rgba(244,114,182,.08); border:2px dashed rgba(244,114,182,.55);
+    border-radius:14px; padding:14px 18px; font-size:15px; line-height:2.1; margin-top:14px}
+
+  /* ---------- 底部导航 ---------- */
+  nav{position:fixed; left:50%; transform:translateX(-50%); bottom:14px; z-index:50;
+    display:flex; align-items:center; gap:14px; flex-wrap:wrap; justify-content:center;
+    background:rgba(12,20,36,.92); backdrop-filter:blur(8px);
+    border:2px solid var(--line); border-radius:999px; padding:10px 18px; max-width:94vw}
+  .dots{display:flex; gap:7px}
+  .dot{width:12px; height:12px; border-radius:50%; background:var(--line2); border:none;
+    cursor:pointer; transition:.2s; padding:0}
+  .dot.on{background:var(--amber); transform:scale(1.3)}
+  .scenetitle{font-weight:700; font-size:14px; max-width:190px; overflow:hidden;
+    text-overflow:ellipsis; white-space:nowrap}
+  .counter{color:var(--muted); font-weight:700; font-size:14px; min-width:54px; text-align:center}
+
+  /* ---------- 动画 ---------- */
+  @keyframes fadeIn{from{opacity:0; transform:translateY(10px)} to{opacity:1; transform:none}}
+  @keyframes dpop{0%{transform:scale(.55); opacity:0} 60%{transform:scale(1.07)} 100%{transform:scale(1); opacity:1}}
+  .pop{animation:dpop .35s ease}
+  @keyframes fall{to{transform:translateY(108vh) rotate(720deg)}}
+  .confetti{position:fixed; top:-40px; z-index:99; pointer-events:none; animation:fall linear forwards}
+  .hidden{display:none!important}
+
+  @media (max-width:640px){
+    .panel{padding:18px 14px}
+    .rrow{grid-template-columns:1fr; gap:4px}
+    h2{font-size:20px}
+  }
+</style>
+</head>
+<body>
+<main id="stage">
+  <header class="topbar">
+    <h1>绝对值 <span class="pipe">|a|</span></h1>
+    <p class="sub">数轴上的距离魔法 · 初一数学 · ← → 方向键翻页，蓝点都可以拖</p>
+  </header>
+
+  <!-- 场景 0：开场 -->
+  <section class="scene active" data-title="开场">
+    <div class="panel">
+      <h2>先讲一个小故事 🚶</h2>
+      <p class="lead">小明从<b>家</b>出发：去<b>学校</b>要往东走 3 千米，记作 <b class="am">+3</b>；去<b>电影院</b>要往西走 3 千米，记作 <b class="pk">−3</b>。</p>
+      <p class="lead">问题来了：他到底<b class="hl">走了多远</b>？动手试试 👇</p>
+      <svg id="walkLine" class="numline"></svg>
+      <div class="ctrl">
+        <button class="btn" id="goEast">往东去学校 (+3)</button>
+        <button class="btn" id="goWest">往西去电影院 (−3)</button>
+      </div>
+      <div class="walkread" id="walkRead">👉 点上面的按钮，看看两种走法各走了多远</div>
+      <div class="verdict" id="walkVerdict"></div>
+    </div>
+  </section>
+
+  <!-- 场景 1：数轴上的 |x| -->
+  <section class="scene" data-title="① 数轴上的 |x|">
+    <div class="panel">
+      <h2>动手拖一拖：|x| 到底是什么？</h2>
+      <p class="lead">在数轴上<b>拖动蓝点</b>（或点任意位置）：<span class="hl">|x| 就是这个点到原点 0 的距离</span>。</p>
+      <svg id="line1" class="numline"></svg>
+      <div class="chipbar">
+        <span class="chip">x = <b id="xVal1">2</b></span>
+        <span class="chip amber">|x| = <b id="absVal1">2</b></span>
+        <label class="toggle"><input type="checkbox" id="mirror1"> 显示相反数 −x（比比谁的绝对值大）</label>
+      </div>
+      <div class="note" id="note1"></div>
+    </div>
+  </section>
+
+  <!-- 场景 2：怎么求绝对值 -->
+  <section class="scene" data-title="② 怎么求绝对值">
+    <div class="panel">
+      <h2>三种情况，一张卡片一个答案 🃏</h2>
+      <p class="lead">先自己想一想，再<b>点击卡片</b>翻出答案（三张都翻开后有惊喜）。</p>
+      <div class="cards3">
+        <div class="fcard" data-k="pos"><div class="inner"><div class="front">| +7 | = ?</div><div class="back">7<div class="why">正数 → 它本身</div></div></div></div>
+        <div class="fcard" data-k="neg"><div class="inner"><div class="front">| −7 | = ?</div><div class="back">7<div class="why">负数 → 它的相反数</div></div></div></div>
+        <div class="fcard" data-k="zero"><div class="inner"><div class="front">| 0 | = ?</div><div class="back">0<div class="why">0 → 还是 0</div></div></div></div>
+      </div>
+      <div class="rulebox" id="ruleBox">
+        <div class="rline">📌 <b>正数</b>的绝对值是它<b class="am">本身</b>：|+7| = 7</div>
+        <div class="rline">📌 <b>负数</b>的绝对值是它的<b class="pk">相反数</b>：|−7| = −(−7) = 7</div>
+        <div class="rline">📌 <b>0</b> 的绝对值是 <b>0</b>：|0| = 0</div>
+        <div class="rline big">三种情况合起来，绝对值<b class="hlb">永远 ≥ 0</b>（这叫"非负性"），而且 |a| = |−a|</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 场景 3：动手算一算 -->
+  <section class="scene" data-title="③ 动手算一算">
+    <div class="panel">
+      <h2>例题：一步一步来 ✍️</h2>
+      <div class="exbar">
+        <button class="btn" data-calc="0">例1 加法</button>
+        <button class="btn" data-calc="1">例2 减法</button>
+        <button class="btn" data-calc="2">例3 混合</button>
+      </div>
+      <div class="calchead" id="calcHead"></div>
+      <div class="steps" id="calcSteps"></div>
+      <div class="ctrl">
+        <button class="btn primary" id="calcNext">下一步 ▸</button>
+        <button class="btn" id="calcAuto">▶ 自动播放</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 场景 4：对称与非负性 -->
+  <section class="scene" data-title="④ 对称与非负性">
+    <div class="panel">
+      <h2>一对镜像双胞胎 🪞</h2>
+      <p class="lead">拖动滑杆：a 与 −a 总是关于原点<b>对称</b>，到原点的距离<b>永远相等</b>。</p>
+      <svg id="line4" class="numline"></svg>
+      <div class="sliderbar">
+        <span class="lab">a =</span>
+        <input type="range" id="sl4" min="-6" max="6" step="1" value="3">
+        <span class="chip" id="v4">3</span>
+        <span class="chip amber">|a| = <b id="absA4">3</b></span>
+        <span class="chip pink">|−a| = <b id="absNeg4">3</b></span>
+      </div>
+      <div class="note" id="note4"></div>
+      <div class="divider"></div>
+      <h3>经典题：若 |x| + |y| = 0，求 x、y</h3>
+      <p class="lead">两个<b class="hl">非负数</b>相加等于 0 —— 只有一种可能！点下面按钮看看 👇</p>
+      <div class="bars">
+        <div class="nbar"><span class="lab">|x|</span><div class="track"><div class="fill amber" id="fx" style="width:80%"></div></div><span class="num" id="fxv">8</span></div>
+        <div class="nbar"><span class="lab">|y|</span><div class="track"><div class="fill pink" id="fy" style="width:50%"></div></div><span class="num" id="fyv">5</span></div>
+      </div>
+      <div class="ctrl"><button class="btn primary" id="zeroDemo">▶ 演示：怎样才能等于 0？</button></div>
+      <div class="note big" id="zeroNote">现在 |x| + |y| = 8 + 5 = 13，怎么变都不可能是 0……除非？</div>
+    </div>
+  </section>
+
+  <!-- 场景 5：比较负数大小 -->
+  <section class="scene" data-title="⑤ 比较负数大小">
+    <div class="panel">
+      <h2>谁更大？−3 还是 −8？🤔</h2>
+      <p class="lead">数轴上，越靠<b>右边</b>的数越大。那两个负数呢？先<b>量一量距离</b>再说！</p>
+      <svg id="line5" class="numline"></svg>
+      <div class="ctrl">
+        <button class="btn" id="cmpPrev">◀ 换一对</button>
+        <button class="btn primary" id="cmpGo">量一量距离 🔍</button>
+        <button class="btn" id="cmpNext">换一对 ▶</button>
+      </div>
+      <div class="cmpout" id="cmpOut"></div>
+    </div>
+  </section>
+
+  <!-- 场景 6：游戏 -->
+  <section class="scene" data-title="⑥ 游戏：点出答案">
+    <div class="panel">
+      <h2>🎯 在数轴上点出所有答案</h2>
+      <p id="gQ"></p>
+      <svg id="line6" class="numline"></svg>
+      <div class="ctrl">
+        <button class="btn" id="gHint">💡 提示</button>
+        <button class="btn primary" id="gNext" disabled>下一题 ▸</button>
+      </div>
+      <div class="gstat"><span id="gStars">⭐ 0</span><span id="gMsg">点数轴上的整数位置试试！</span></div>
+      <div class="hintbox" id="gHintBox"></div>
+    </div>
+  </section>
+
+  <!-- 场景 7：分类讨论 -->
+  <section class="scene" data-title="⑦ 分类讨论 |x|=3">
+    <div class="panel">
+      <h2>解方程 |x| = 3：必须分情况！</h2>
+      <p class="lead">绝对值是"距离"，可它<b class="hlb">不告诉你方向</b>：在 0 左边还是右边？不知道 → 就分两种情况讨论。</p>
+      <svg id="line7a" class="numline"></svg>
+      <svg id="line7b" class="numline hidden"></svg>
+      <div class="casecol" id="caseCol"></div>
+      <div class="ctrl">
+        <button class="btn primary" id="caseNext">下一步 ▸</button>
+        <button class="btn" id="caseReset">🔁 重看</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 场景 8：大题分段化简 -->
+  <section class="scene" data-title="⑧ 大题：分段化简">
+    <div class="panel">
+      <h2>化简：| a + 1 | + | a − 2 |</h2>
+      <p class="lead">
+        a 是什么数<b>不知道</b>，括号里的正负没法确定 → <b class="hl">先找零点，再分段讨论</b>。
+        拖动蓝点或滑杆，看看三段里各发生了什么。
+      </p>
+      <svg id="line8" class="numline"></svg>
+      <div class="sliderbar">
+        <span class="lab">a =</span>
+        <input type="range" id="sl8" min="-4" max="5" step="0.5" value="0">
+        <span class="chip" id="v8">0</span>
+        <button class="btn" id="sweep8">▶ 自动扫一遍</button>
+      </div>
+      <div class="livebox" id="live8"></div>
+      <div class="regiontable" id="regionTable">
+        <div class="rrow"><span class="rr">① a &lt; −1</span><span>|a+1| = −(a+1)，|a−2| = −(a−2)</span><span class="rf">原式 = 1 − 2a</span></div>
+        <div class="rrow"><span class="rr">② −1 ≤ a ≤ 2</span><span>|a+1| = a+1，|a−2| = −(a−2)</span><span class="rf">原式 = 3</span></div>
+        <div class="rrow"><span class="rr">③ a &gt; 2</span><span>|a+1| = a+1，|a−2| = a−2</span><span class="rf">原式 = 2a − 1</span></div>
+      </div>
+      <p class="hint2">✨ 三段在交界 a = −1、a = 2 处结果都是 3，刚好接上 —— 说明分段没有漏掉任何情况。</p>
+    </div>
+  </section>
+
+  <!-- 场景 9：总结 -->
+  <section class="scene" data-title="总结">
+    <div class="panel">
+      <h2>一页记住绝对值 📋</h2>
+      <div class="sumgrid">
+        <div class="scard">📏 <b>定义</b>：|a| 就是数轴上 a 到原点的<b>距离</b></div>
+        <div class="scard">🧮 <b>法则</b>：正数 → 本身；负数 → 相反数；0 → 0</div>
+        <div class="scard">🛡 <b>非负性</b>：|a| ≥ 0；且 |a| = |−a|（对称）</div>
+        <div class="scard">⚖️ <b>比大小</b>：两个负数，绝对值大的反而小</div>
+        <div class="scard">📍 <b>推广</b>：|x − a| 是 x 到 a 的距离（a 换成谁都可以）</div>
+      </div>
+      <div class="method">🔀 <b>分类讨论四步</b>：① 定标准（括号里 ≥ 0 还是 &lt; 0）→ ② 分情况/找零点分段 → ③ 每段解到底 → ④ 合并答案、检验</div>
+      <p class="homework">📝 课后挑战：① 化简 |a − 3| + |a + 1|（学第 ⑧ 幕找零点）；② 若 |a − 1| + |b + 2| = 0，求 a、b（学第 ④ 幕非负性）；③ 数轴上到 3 和 −1 距离相等的点是多少？（画画数轴）</p>
+    </div>
+  </section>
+</main>
+
+<nav>
+  <button class="btn" id="prev">← 上一步</button>
+  <div class="dots" id="dots"></div>
+  <span class="scenetitle" id="scenetitle">开场</span>
+  <button class="btn primary" id="next">下一步 →</button>
+  <span class="counter" id="counter">1 / 10</span>
+</nav>
+
+<script>
+(() => {
+"use strict";
+const $ = s => document.querySelector(s);
+const $$ = (s, c = document) => [...c.querySelectorAll(s)];
+const SVGNS = "http://www.w3.org/2000/svg";
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const lerp = (a, b, k) => a + (b - a) * k;
+const easeOut = k => 1 - Math.pow(1 - k, 3);
+const fmt = v => Math.abs(v % 1) < 1e-9 ? String(Math.round(v)) : v.toFixed(1);
+const fmts = v => fmt(v).replace("-", "−");
+function tween(ms, fn){
+  return new Promise(res => {
+    const t0 = performance.now();
+    const tick = t => {
+      const k = Math.min(1, (t - t0) / ms);
+      fn(easeOut(k));
+      k < 1 ? requestAnimationFrame(tick) : res();
+    };
+    requestAnimationFrame(tick);
+  });
+}
+function pop(el){ el.classList.remove("pop"); void el.offsetWidth; el.classList.add("pop"); }
+function confetti(){
+  const emo = ["🎉", "🎊", "✨", "⭐", "💯"];
+  for(let i = 0; i < 26; i++){
+    const s = document.createElement("span");
+    s.className = "confetti";
+    s.textContent = emo[i % emo.length];
+    s.style.left = Math.random() * 96 + "vw";
+    s.style.animationDuration = 1.6 + Math.random() * 1.6 + "s";
+    s.style.animationDelay = Math.random() * .5 + "s";
+    s.style.fontSize = 16 + Math.random() * 16 + "px";
+    document.body.appendChild(s);
+    setTimeout(() => s.remove(), 3800);
+  }
+}
+
+/* ---------- 通用：数轴 ---------- */
+function makeLine(sel, min, max, opts = {}){
+  const svg = $(sel);
+  const W = 880, y = opts.y ?? 70, H = opts.h ?? 150;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  const pad = 70;
+  const px = v => pad + (v - min) / (max - min) * (W - 2 * pad);
+  const val = x => min + (x - pad) / (W - 2 * pad) * (max - min);
+  let g = `<line x1="${pad - 26}" y1="${y}" x2="${W - pad + 26}" y2="${y}" class="axis"/>` +
+          `<path d="M${W - pad + 28} ${y} l-13 -6.5 v13 z" class="axisarrow"/>`;
+  for(let v = min; v <= max; v++){
+    const z = v === 0;
+    g += `<line x1="${px(v)}" y1="${y - 8}" x2="${px(v)}" y2="${y + 8}" class="tick${z ? " z" : ""}"/>` +
+         `<text x="${px(v)}" y="${y + 30}" class="ticklab${z ? " z" : ""}">${v}</text>`;
+  }
+  svg.innerHTML = g;
+  return { svg, px, val, y, W, H, min, max };
+}
+function addPoint(L, cls, v, r = 12){
+  const c = document.createElementNS(SVGNS, "circle");
+  c.setAttribute("cx", L.px(v)); c.setAttribute("cy", L.y);
+  c.setAttribute("r", r); c.setAttribute("class", "pt " + cls);
+  L.svg.appendChild(c);
+  return { el: c, set(nv){ c.setAttribute("cx", L.px(nv)); } };
+}
+function addBar(L, cls, yoff = -18){
+  const ln = document.createElementNS(SVGNS, "line");
+  ln.setAttribute("y1", L.y + yoff); ln.setAttribute("y2", L.y + yoff);
+  ln.setAttribute("x1", -200); ln.setAttribute("x2", -200);
+  ln.setAttribute("class", "dbar " + cls);
+  L.svg.appendChild(ln);
+  return { el: ln, set(a, b){ ln.setAttribute("x1", L.px(a)); ln.setAttribute("x2", L.px(b)); },
+           hide(){ ln.setAttribute("x1", -200); ln.setAttribute("x2", -200); } };
+}
+function addText(L, cls, yoff){
+  const t = document.createElementNS(SVGNS, "text");
+  t.setAttribute("class", cls); t.setAttribute("y", L.y + yoff);
+  L.svg.appendChild(t);
+  return { el: t, set(v, s){ t.setAttribute("x", L.px(v)); t.textContent = s; } };
+}
+function bindDrag(L, onVal, snap = Math.round){
+  const svg = L.svg;
+  svg.style.touchAction = "none";
+  svg.style.cursor = "crosshair";
+  const handle = e => {
+    const r = svg.getBoundingClientRect();
+    if(r.width < 10) return;
+    const x = (e.clientX - r.left) / r.width * L.W;
+    const v = snap(L.val(x));
+    onVal(Math.max(L.min, Math.min(L.max, v)));
+  };
+  svg.addEventListener("pointerdown", e => { try{ svg.setPointerCapture(e.pointerId); }catch(_){ } handle(e); });
+  svg.addEventListener("pointermove", e => { if(svg.hasPointerCapture && svg.hasPointerCapture(e.pointerId)) handle(e); });
+}
+
+/* ---------- 场景0：走路故事 ---------- */
+const L0 = makeLine("#walkLine", -4, 4, { y: 88, h: 175 });
+[[0, "🏠", "家"], [3, "🏫", "学校"], [-3, "🎬", "电影院"]].forEach(([v, e, name]) => {
+  const t = document.createElementNS(SVGNS, "text");
+  t.setAttribute("x", L0.px(v)); t.setAttribute("y", L0.y - 54);
+  t.setAttribute("class", "placelab"); t.textContent = e;
+  L0.svg.appendChild(t);
+  const n = document.createElementNS(SVGNS, "text");
+  n.setAttribute("x", L0.px(v)); n.setAttribute("y", L0.y - 34);
+  n.setAttribute("class", "placename"); n.textContent = name;
+  L0.svg.appendChild(n);
+});
+const trail0 = addBar(L0, "amber", 0);
+trail0.set(0, 0);
+const walker0 = document.createElementNS(SVGNS, "text");
+walker0.setAttribute("x", L0.px(0)); walker0.setAttribute("y", L0.y - 12);
+walker0.setAttribute("class", "walker"); walker0.textContent = "🚶";
+L0.svg.appendChild(walker0);
+let cur0 = 0, east0 = false, west0 = false, busy0 = false;
+async function walk0(dir){
+  if(busy0) return;
+  busy0 = true;
+  const to = dir > 0 ? 3 : -3, from = cur0;
+  walker0.style.transform = `translateX(${L0.px(to) - L0.px(0)}px)` + (dir < 0 ? " scaleX(-1)" : "");
+  await tween(1100, k => trail0.set(0, lerp(from, to, k)));
+  cur0 = to;
+  const rd = $("#walkRead");
+  rd.innerHTML = dir > 0
+    ? `往东走：记作 <b class="am">+3</b>，但"走了多远"不看方向 → 路程 = <b class="gr">|+3| = 3 千米</b> ✅`
+    : `往西走：记作 <b class="pk">−3</b>，路程一模一样 → <b class="gr">|−3| = 3 千米</b> ✅`;
+  pop(rd);
+  if(dir > 0) east0 = true; else west0 = true;
+  if(east0 && west0){
+    const v = $("#walkVerdict");
+    v.innerHTML = "💡 发现了吗？<b>方向不同，路程相同</b> —— 距离不分正负！<br>" +
+      "数学家用一对竖线专门表示“距离”：<b class='hlb'>|+3| = |−3| = 3</b>，这就是<b>绝对值</b>。";
+    v.classList.add("show");
+    pop(v);
+  }
+  busy0 = false;
+}
+$("#goEast").onclick = () => walk0(1);
+$("#goWest").onclick = () => walk0(-1);
+
+/* ---------- 场景1：数轴上的 |x| ---------- */
+const L1 = makeLine("#line1", -7, 7);
+const p1 = addPoint(L1, "", 2);
+const lab1 = addText(L1, "ptlab", -40);
+const bar1 = addBar(L1, "amber", -18);
+const blab1 = addText(L1, "barlab am", -30);
+const g1 = addPoint(L1, "ghost", -2, 10);
+const gbar1 = addBar(L1, "pink ghost", 0);
+const glab1 = addText(L1, "barlab pk", 54);
+let x1 = 2, mir1 = false;
+function upd1(){
+  const A = Math.abs(x1);
+  p1.set(x1); lab1.set(x1, "x = " + fmts(x1));
+  bar1.set(0, x1);
+  blab1.set(x1 / 2, "|x| = " + fmt(A));
+  blab1.el.style.display = x1 === 0 ? "none" : "";
+  $("#xVal1").textContent = fmts(x1);
+  $("#absVal1").textContent = fmt(A);
+  $("#note1").innerHTML = x1 > 0
+    ? `点在原点<b class="am">右边</b> ${fmt(A)} 格：|x| = x = ${fmt(A)}（正数的绝对值是它本身）`
+    : x1 < 0
+    ? `点在原点<b class="pk">左边</b> ${fmt(A)} 格：|x| = −x = ${fmt(A)}（负数的绝对值是它的相反数）`
+    : `点就在原点上：|0| = 0（0 既不是正数也不是负数）`;
+  const show = mir1 && x1 !== 0;
+  g1.el.style.display = gbar1.el.style.display = glab1.el.style.display = show ? "" : "none";
+  if(show){
+    g1.set(-x1);
+    gbar1.set(0, -x1);
+    glab1.set(-x1 / 2, "|−x| = |" + fmts(-x1) + "| = " + fmt(A));
+  }
+}
+bindDrag(L1, v => { x1 = v; upd1(); });
+$("#mirror1").onchange = e => { mir1 = e.target.checked; upd1(); };
+
+/* ---------- 场景2：翻卡 ---------- */
+const flipped2 = new Set();
+$$(".fcard").forEach(c => c.onclick = () => {
+  if(c.classList.contains("flip")) return;
+  c.classList.add("flip");
+  flipped2.add(c.dataset.k);
+  if(flipped2.size === 3){
+    const rb = $("#ruleBox");
+    rb.classList.add("show");
+    pop(rb);
+  }
+});
+
+/* ---------- 场景3：例题步进 ---------- */
+const CALC = [
+  { head: "例1：| −5 | + | +3 | = ?", steps: [
+    ["第 1 步", "|−5|：−5 是<b>负数</b> → 绝对值是它的相反数 → <b>5</b>"],
+    ["第 2 步", "|+3|：+3 是<b>正数</b> → 绝对值是它本身 → <b>3</b>"],
+    ["结果", "5 + 3 = <b class='gr big'>8</b> ✅"] ] },
+  { head: "例2：| −12 | − | −7 | = ?", steps: [
+    ["第 1 步", "|−12|：负数 → 相反数 → <b>12</b>"],
+    ["第 2 步", "|−7|：负数 → 相反数 → <b>7</b>"],
+    ["结果", "12 − 7 = <b class='gr big'>5</b> ✅"] ] },
+  { head: "例3：| −8 | ÷ 2 + | −3 | = ?", steps: [
+    ["第 1 步", "|−8| = <b>8</b>，|−3| = <b>3</b>"],
+    ["第 2 步", "先算除法：8 ÷ 2 = <b>4</b>"],
+    ["结果", "4 + 3 = <b class='gr big'>7</b> ✅"] ] },
+];
+let ci3 = 0, si3 = 0, autoTok3 = 0;
+function loadCalc(i){
+  ci3 = i; si3 = 0; autoTok3++;
+  $("#calcHead").textContent = CALC[i].head;
+  $("#calcSteps").innerHTML = "";
+  $("#calcNext").disabled = false;
+  $("#calcNext").textContent = "下一步 ▸";
+}
+function stepCalc(){
+  if(si3 >= CALC[ci3].steps.length) return;
+  const [tag, html] = CALC[ci3].steps[si3];
+  const div = document.createElement("div");
+  div.className = "cline" + (tag === "结果" ? " res" : "");
+  div.innerHTML = `<span class="ct">${tag}</span><span class="cb">${html}</span>`;
+  $("#calcSteps").appendChild(div);
+  requestAnimationFrame(() => requestAnimationFrame(() => div.classList.add("show")));
+  si3++;
+  if(si3 >= CALC[ci3].steps.length){
+    $("#calcNext").disabled = true;
+    $("#calcNext").textContent = "完成 ✅";
+  }
+}
+$("#calcNext").onclick = stepCalc;
+$$("[data-calc]").forEach(b => b.onclick = () => loadCalc(+b.dataset.calc));
+$("#calcAuto").onclick = async () => {
+  const tk = ++autoTok3;
+  $("#calcAuto").disabled = true;
+  while(si3 < CALC[ci3].steps.length && tk === autoTok3 &&
+        $("#calcSteps").closest(".scene").classList.contains("active")){
+    stepCalc();
+    await sleep(950);
+  }
+  $("#calcAuto").disabled = false;
+};
+
+/* ---------- 场景4：对称 + 非负性 ---------- */
+const L4 = makeLine("#line4", -7, 7);
+const pa4 = addPoint(L4, "", 3);
+const pla4 = addText(L4, "ptlab", -40);
+const pg4 = addPoint(L4, "ghost", -3, 10);
+const plg4 = addText(L4, "ptlab pk", -24);
+const b4a = addBar(L4, "amber", -18);
+const b4g = addBar(L4, "pink ghost", -18);
+let a4 = 3;
+function upd4(){
+  pa4.set(a4); pla4.set(a4, "a = " + fmts(a4));
+  pg4.set(-a4); plg4.set(-a4, "−a = " + fmts(-a4));
+  b4a.set(0, a4); b4g.set(0, -a4);
+  $("#v4").textContent = fmts(a4);
+  $("#absA4").textContent = fmt(Math.abs(a4));
+  $("#absNeg4").textContent = fmt(Math.abs(a4));
+  $("#note4").innerHTML = a4 === 0
+    ? "a = 0：点和它的镜像重合在一起，|0| = 0"
+    : `${fmts(a4)} 和 ${fmts(-a4)} 互为相反数，关于原点<b class="hlb">对称</b> → |a| = |−a| = ${fmt(Math.abs(a4))}，永远相等！`;
+}
+$("#sl4").oninput = e => { a4 = +e.target.value; upd4(); };
+$("#zeroDemo").onclick = async () => {
+  const fx = $("#fx"), fy = $("#fy");
+  fx.style.transition = fy.style.transition = "none";
+  fx.style.width = "80%"; fy.style.width = "50%";
+  $("#fxv").textContent = "8"; $("#fyv").textContent = "5";
+  $("#zeroNote").innerHTML = "两个非负数正在变小……";
+  void fx.offsetWidth;
+  fx.style.transition = fy.style.transition = "width 1.8s ease";
+  fx.style.width = "0%"; fy.style.width = "0%";
+  const fxv = $("#fxv"), fyv = $("#fyv");
+  await tween(1800, k => {
+    fxv.textContent = Math.round(lerp(8, 0, k));
+    fyv.textContent = Math.round(lerp(5, 0, k));
+  });
+  $("#zeroNote").innerHTML = `两个<b class="hl">非负数</b>相加 = 0，只有一种可能：<b>两个都是 0</b>！<br>所以 |x| = 0 且 |y| = 0 → <b class="gr">x = 0，y = 0</b> ✅`;
+  pop($("#zeroNote"));
+};
+
+/* ---------- 场景5：比较负数 ---------- */
+const PAIRS5 = [[-3, -8], [-2, -9], [-5, -1], [-6, -4]];
+const L5 = makeLine("#line5", -10, 1);
+const p5a = addPoint(L5, "", -3);
+const l5a = addText(L5, "ptlab am", -46);
+const p5b = addPoint(L5, "ghost", -8, 11);
+const l5b = addText(L5, "ptlab pk", -46);
+const b5a = addBar(L5, "amber", -20);
+const b5b = addBar(L5, "pink ghost", -34);
+let pi5 = 0, busy5 = false;
+function draw5(){
+  const [a, b] = PAIRS5[pi5];
+  p5a.set(a); l5a.set(a, fmts(a));
+  p5b.set(b); l5b.set(b, fmts(b));
+  b5a.hide(); b5b.hide();
+  $("#cmpOut").innerHTML = `<div class="note" style="text-align:center">点「量一量距离 🔍」，看看谁离原点更远</div>`;
+}
+$("#cmpGo").onclick = async () => {
+  if(busy5) return;
+  busy5 = true;
+  const [a, b] = PAIRS5[pi5];
+  await tween(700, k => { b5a.set(0, lerp(0, a, k)); b5b.set(0, lerp(0, b, k)); });
+  const A = Math.abs(a), B = Math.abs(b);
+  const big = Math.max(a, b);
+  $("#cmpOut").innerHTML = `
+    <div class="cline show"><span class="ct">量距离</span><span class="cb">|${fmts(a)}| = ${fmt(A)}，|${fmts(b)}| = ${fmt(B)} → 绝对值 ${fmt(Math.max(A, B))} 更大</span></div>
+    <div class="cline show"><span class="ct">看位置</span><span class="cb">数轴上 <b>${fmts(big)}</b> 在右边 → <b>${fmts(big)} 更大</b>（右边的数大）</span></div>
+    <div class="cline show res"><span class="ct">结论</span><span class="cb">两个负数比大小，<b class="hlb">绝对值大的反而小</b>（离原点越远越靠左，越小 🥶）</span></div>`;
+  busy5 = false;
+};
+$("#cmpNext").onclick = () => { pi5 = (pi5 + 1) % PAIRS5.length; draw5(); };
+$("#cmpPrev").onclick = () => { pi5 = (pi5 - 1 + PAIRS5.length) % PAIRS5.length; draw5(); };
+
+/* ---------- 场景6：游戏 ---------- */
+const R6 = [
+  { q: "点出所有满足 <b>|x| = 4</b> 的点", hint: "|x| 是 x 到原点 0 的距离：原点左右各找一个", ans: [-4, 4] },
+  { q: "点出所有满足 <b>|x| = 2</b> 的点", hint: "到原点距离是 2：0 左边一个、右边一个", ans: [-2, 2] },
+  { q: "挑战：<b>|x − 1| = 3</b> 呢？", hint: "|x − 1| 是 x 到 1 的距离：从 1 出发，左右各走 3 格", ans: [-2, 4] },
+  { q: "挑战：<b>|x + 2| = 3</b> 呢？", hint: "|x + 2| = |x − (−2)|：就是到 −2 的距离是 3", ans: [-5, 1] },
+];
+const L6 = makeLine("#line6", -6, 6);
+L6.svg.style.touchAction = "none";
+L6.svg.style.cursor = "crosshair";
+let gi6 = 0, left6 = [], stars6 = 0, won6 = false, playedG6 = false;
+function gmark6(v, ok){
+  const g = document.createElementNS(SVGNS, "g");
+  g.setAttribute("class", "gmark");
+  const c = document.createElementNS(SVGNS, "circle");
+  c.setAttribute("cx", L6.px(v)); c.setAttribute("cy", L6.y); c.setAttribute("r", 12);
+  c.setAttribute("class", "pt " + (ok ? "good" : "bad"));
+  g.appendChild(c);
+  const t = document.createElementNS(SVGNS, "text");
+  t.setAttribute("x", L6.px(v)); t.setAttribute("y", L6.y - 26);
+  t.setAttribute("class", "ptlab " + (ok ? "gr" : "pk"));
+  t.textContent = ok ? fmts(v) + " ✓" : "✗";
+  g.appendChild(t);
+  L6.svg.appendChild(g);
+  return g;
+}
+function newG6(i){
+  gi6 = i;
+  left6 = [...R6[i].ans];
+  won6 = false;
+  $("#gQ").innerHTML = `第 ${i + 1} / ${R6.length} 题：${R6[i].q} <span class="muted">（共 ${R6[i].ans.length} 个答案）</span>`;
+  $("#gMsg").textContent = "点数轴上的整数位置试试！";
+  $("#gHintBox").classList.remove("show");
+  $("#gNext").disabled = true;
+  $("#gNext").textContent = "下一题 ▸";
+  $$("#line6 .gmark").forEach(e => e.remove());
+}
+L6.svg.addEventListener("pointerdown", e => {
+  if(won6) return;
+  const r = L6.svg.getBoundingClientRect();
+  if(r.width < 10) return;
+  const x = (e.clientX - r.left) / r.width * L6.W;
+  const v = Math.round(L6.val(x));
+  if(v < L6.min || v > L6.max) return;
+  if(left6.includes(v)){
+    left6 = left6.filter(w => w !== v);
+    gmark6(v, true);
+    stars6++;
+    $("#gStars").textContent = "⭐ " + stars6;
+    $("#gMsg").textContent = left6.length ? "✅ 对！还有一个，继续找……" : "";
+    if(!left6.length){
+      won6 = true;
+      confetti();
+      $("#gMsg").innerHTML = "🎉 全部找齐！<b>一道题两个答案</b> —— 这就是绝对值要“分类讨论”的原因";
+      $("#gNext").disabled = false;
+      if(gi6 === R6.length - 1) $("#gNext").textContent = "重新开始 🔄";
+    }
+  } else {
+    $("#gMsg").textContent = "❌ 这个点不满足条件，再想想（想想距离！）";
+    const g = gmark6(v, false);
+    setTimeout(() => g.remove(), 900);
+  }
+});
+$("#gHint").onclick = () => {
+  $("#gHintBox").textContent = "💡 " + R6[gi6].hint;
+  $("#gHintBox").classList.add("show");
+};
+$("#gNext").onclick = () => newG6((gi6 + 1) % R6.length);
+
+/* ---------- 场景7：分类讨论 ---------- */
+const L7a = makeLine("#line7a", -5, 5);
+const L7b = makeLine("#line7b", -5, 8);
+const g7a = document.createElementNS(SVGNS, "g"); L7a.svg.appendChild(g7a);
+const g7b = document.createElementNS(SVGNS, "g"); L7b.svg.appendChild(g7b);
+const mk7 = document.createElementNS(SVGNS, "path");
+mk7.setAttribute("d", `M${L7b.px(2)} ${L7b.y - 9} l9 9 l-9 9 l-9 -9 z`);
+mk7.setAttribute("class", "zeromark");
+L7b.svg.appendChild(mk7);
+const mk7l = addText(L7b, "barlab am", -26);
+mk7l.set(2, "中心点 2");
+
+function card(cls, tag, html){
+  const d = document.createElement("div");
+  d.className = "case " + cls;
+  d.innerHTML = `<div class="ctag">${tag}</div><div class="cbody">${html}</div>`;
+  $("#caseCol").appendChild(d);
+  requestAnimationFrame(() => requestAnimationFrame(() => d.classList.add("show")));
+  return sleep(260);
+}
+async function dropPoint(L, grp, v, lab){
+  const c = document.createElementNS(SVGNS, "circle");
+  c.setAttribute("cx", L.px(v)); c.setAttribute("cy", L.y - 55);
+  c.setAttribute("r", 12); c.setAttribute("class", "pt good"); c.setAttribute("opacity", "0");
+  grp.appendChild(c);
+  const t = document.createElementNS(SVGNS, "text");
+  t.setAttribute("x", L.px(v)); t.setAttribute("y", L.y - 26);
+  t.setAttribute("class", "ptlab gr"); t.textContent = lab;
+  t.setAttribute("opacity", "0");
+  grp.appendChild(t);
+  await tween(450, k => {
+    c.setAttribute("cy", lerp(L.y - 55, L.y, k));
+    c.setAttribute("opacity", k);
+    t.setAttribute("opacity", k);
+  });
+}
+async function growBar(L, grp, a, b, cls, lab){
+  const ln = document.createElementNS(SVGNS, "line");
+  ln.setAttribute("y1", L.y - 18); ln.setAttribute("y2", L.y - 18);
+  ln.setAttribute("x1", L.px(a)); ln.setAttribute("x2", L.px(a));
+  ln.setAttribute("class", "dbar " + cls);
+  grp.appendChild(ln);
+  await tween(550, k => ln.setAttribute("x2", L.px(lerp(a, b, k))));
+  const t = document.createElementNS(SVGNS, "text");
+  t.setAttribute("x", L.px((a + b) / 2)); t.setAttribute("y", L.y - 30);
+  t.setAttribute("class", "barlab " + (cls === "pink" ? "pk" : "gr"));
+  t.textContent = lab;
+  grp.appendChild(t);
+}
+function ringAt(L, grp, v){
+  const c = document.createElementNS(SVGNS, "circle");
+  c.setAttribute("cx", L.px(v)); c.setAttribute("cy", L.y); c.setAttribute("r", 18);
+  c.setAttribute("class", "ring");
+  grp.appendChild(c);
+}
+const S7 = [
+  async () => {
+    await card("info", "第 1 步：读懂它的意思", "|x| = 3 就是「x 到原点的距离 = 3」。距离不分左右 —— 所以左右应该各有一个点！");
+    await dropPoint(L7a, g7a, 3, "3");
+    await growBar(L7a, g7a, 0, 3, "green", "|x| = 3");
+    await dropPoint(L7a, g7a, -3, "−3");
+    await growBar(L7a, g7a, 0, -3, "pink", "|x| = 3");
+  },
+  async () => {
+    await card("ok", "情况① 若 x ≥ 0（点在原点右边）", "这时 |x| = x，代入得 x = 3 ✅ 右边的点找到了");
+    ringAt(L7a, g7a, 3);
+  },
+  async () => {
+    await card("ok", "情况② 若 x < 0（点在原点左边）", "这时 |x| = −x，代入得 −x = 3 → x = −3 ✅ 左边的点也找到了");
+    ringAt(L7a, g7a, -3);
+  },
+  async () => {
+    await card("warn", "查漏补缺", "x = 0 行吗？|0| = 0 ≠ 3，不行。两种情况刚好覆盖了所有可能，一个不多一个不少。");
+  },
+  async () => {
+    await card("res", "结论", "x = 3 或 x = −3，简写成 x = ±3。一个绝对值方程，两个解！");
+  },
+  async () => {
+    $("#line7a").classList.add("hidden");
+    $("#line7b").classList.remove("hidden");
+    await card("info", "变式挑战：|x − 2| = 5", "|x − 2| 读作「x 到 <b>2</b> 的距离」（中心从 0 换成了 2）。从 2 出发，往哪边走？");
+  },
+  async () => {
+    await card("ok", "情况① x ≥ 2（在 2 右边）", "x − 2 = 5 → x = 7，从 2 向右走 5 格 ✅");
+    await dropPoint(L7b, g7b, 7, "7");
+    await growBar(L7b, g7b, 2, 7, "green", "距离 5");
+  },
+  async () => {
+    await card("ok", "情况② x < 2（在 2 左边）", "−(x − 2) = 5 → x = −3，从 2 向左走 5 格 ✅");
+    await dropPoint(L7b, g7b, -3, "−3");
+    await growBar(L7b, g7b, 2, -3, "pink", "距离 5");
+  },
+  async () => {
+    await card("res", "结论 · 分类讨论四步", "x = 7 或 x = −3。<br>① 定标准：括号里的式子 ≥ 0 还是 &lt; 0　② 分情况（找零点分段）　③ 每段解到底　④ 合并答案、检验");
+  },
+];
+let s7 = -1, busy7 = false, pend7 = 0;
+async function run7(){
+  if(busy7){ pend7++; return; }
+  busy7 = true;
+  do {
+    s7++;
+    await S7[s7]();
+    if(pend7 > 0) pend7--;
+    else break;
+  } while(s7 < S7.length - 1);
+  if(s7 >= S7.length - 1){
+    $("#caseNext").disabled = true;
+    $("#caseNext").textContent = "完成 ✅";
+  }
+  busy7 = false;
+}
+$("#caseNext").onclick = run7;
+$("#caseReset").onclick = () => {
+  s7 = -1; busy7 = false; pend7 = 0;
+  $("#caseCol").innerHTML = "";
+  g7a.innerHTML = ""; g7b.innerHTML = "";
+  $("#line7a").classList.remove("hidden");
+  $("#line7b").classList.add("hidden");
+  $("#caseNext").disabled = false;
+  $("#caseNext").textContent = "下一步 ▸";
+};
+
+/* ---------- 场景8：分段化简 ---------- */
+const L8 = makeLine("#line8", -4, 5, { y: 88, h: 195 });
+const REGS8 = [[-4, -1, "r1"], [-1, 2, "r2"], [2, 5, "r3"]];
+const segs8 = REGS8.map(([a, b, cls]) => {
+  const ln = document.createElementNS(SVGNS, "line");
+  ln.setAttribute("x1", L8.px(a)); ln.setAttribute("x2", L8.px(b));
+  ln.setAttribute("y1", L8.y + 16); ln.setAttribute("y2", L8.y + 16);
+  ln.setAttribute("class", "regionseg " + cls);
+  L8.svg.appendChild(ln);
+  return ln;
+});
+[[-1, "零点 a = −1"], [2, "零点 a = 2"]].forEach(([z, s]) => {
+  const p = document.createElementNS(SVGNS, "path");
+  p.setAttribute("d", `M${L8.px(z)} ${L8.y - 8} l8 8 l-8 8 l-8 -8 z`);
+  p.setAttribute("class", "zeromark");
+  L8.svg.appendChild(p);
+  const t = addText(L8, "barlab am", 54);
+  t.set(z, s);
+});
+const pt8 = addPoint(L8, "", 0);
+const pl8 = addText(L8, "ptlab", -66);
+const b81 = addBar(L8, "amber", -16);
+const l81 = addText(L8, "barlab am", -28);
+const b82 = addBar(L8, "pink", -34);
+const l82 = addText(L8, "barlab pk", -46);
+let a8 = 0, sweepTok8 = 0;
+function regionOf(a){ return a < -1 ? 0 : a <= 2 ? 1 : 2; }
+function upd8(){
+  pt8.set(a8);
+  pl8.set(a8, "a = " + fmts(a8));
+  $("#v8").textContent = fmts(a8);
+  $("#sl8").value = a8;
+  b81.set(a8, -1); b82.set(a8, 2);
+  const s1 = a8 + 1, s2 = a8 - 2;
+  l81.set((a8 - 1) / 2, "|a+1| = " + fmt(Math.abs(s1)));
+  l82.set((a8 + 2) / 2, "|a−2| = " + fmt(Math.abs(s2)));
+  const r = regionOf(a8);
+  segs8.forEach((s, i) => s.classList.toggle("on", i === r));
+  $$("#regionTable .rrow").forEach((el, i) => el.classList.toggle("on", i === r));
+  const zone = r === 0 ? "左边一段：两个括号里都是<b class='pk'>负</b>的"
+    : r === 1 ? "中间一段：一负一正"
+    : "右边一段：两个括号里都是<b class='am'>正</b>的";
+  const fv = r === 0 ? 1 - 2 * a8 : r === 1 ? 3 : 2 * a8 - 1;
+  const nv = Math.abs(s1) + Math.abs(s2);
+  $("#live8").innerHTML = `
+    <div>a = <b>${fmts(a8)}</b>（${zone}）</div>
+    <div>a + 1 = ${fmts(s1)} ${s1 >= 0 ? "≥" : "&lt;"} 0　→　|a + 1| = ${s1 >= 0 ? "<b>a + 1</b>" : "<b>−(a + 1)</b>"}</div>
+    <div>a − 2 = ${fmts(s2)} ${s2 >= 0 ? "≥" : "&lt;"} 0　→　|a − 2| = ${s2 >= 0 ? "<b>a − 2</b>" : "<b>−(a − 2)</b>"}</div>
+    <div class="lres">分段公式给出 ${fmt(fv)}，数值验证 |${fmts(s1)}| + |${fmts(s2)}| = ${fmt(nv)} ${Math.abs(fv - nv) < 1e-9 ? "✓" : "✗"}</div>`;
+}
+$("#sl8").oninput = e => { a8 = +e.target.value; upd8(); };
+bindDrag(L8, v => { a8 = v; upd8(); }, v => Math.round(v * 2) / 2);
+$("#sweep8").onclick = async () => {
+  const tk = ++sweepTok8;
+  const btn = $("#sweep8");
+  btn.disabled = true;
+  await tween(8000, k => {
+    if(tk !== sweepTok8) return;
+    a8 = Math.round(lerp(-4, 5, k) * 2) / 2;
+    upd8();
+  });
+  if(tk === sweepTok8){ a8 = 5; upd8(); }
+  btn.disabled = false;
+};
+
+/* ---------- 导航 ---------- */
+const scenes = $$(".scene");
+let cur = 0;
+const enter = {
+  6: () => { if(!playedG6){ playedG6 = true; newG6(0); } },
+};
+function go(i){
+  i = Math.max(0, Math.min(scenes.length - 1, i));
+  scenes[cur].classList.remove("active");
+  cur = i;
+  scenes[cur].classList.add("active");
+  $$(".dot").forEach((d, k) => d.classList.toggle("on", k === cur));
+  $("#scenetitle").textContent = scenes[cur].dataset.title;
+  $("#counter").textContent = (cur + 1) + " / " + scenes.length;
+  $("#prev").disabled = cur === 0;
+  $("#next").disabled = cur === scenes.length - 1;
+  (enter[cur] || (() => {}))();
+}
+scenes.forEach((s, i) => {
+  const d = document.createElement("button");
+  d.className = "dot" + (i ? "" : " on");
+  d.title = s.dataset.title;
+  d.onclick = () => go(i);
+  $("#dots").appendChild(d);
+});
+$("#prev").onclick = () => go(cur - 1);
+$("#next").onclick = () => go(cur + 1);
+document.addEventListener("keydown", e => {
+  if(/INPUT|TEXTAREA/.test(e.target.tagName)) return;
+  if(e.key === "ArrowRight") go(cur + 1);
+  if(e.key === "ArrowLeft") go(cur - 1);
+});
+
+/* ---------- 初始化 ---------- */
+upd1();
+upd4();
+draw5();
+upd8();
+loadCalc(0);
+go(0);
+})();
+</script>
+</body>
+</html>

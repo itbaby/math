@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>二进制 · 看得见的计算机语言</title>
+<style>
+  :root{
+    --bg:#0f172a; --card:#1e293b; --card2:#273449; --ink:#f1f5f9; --muted:#94a3b8;
+    --amber:#fbbf24; --glow:rgba(251,191,36,.55);
+    --sky:#38bdf8; --green:#4ade80; --pink:#f472b6; --violet:#a78bfa;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  body{
+    margin:0; min-height:100vh; background:
+      radial-gradient(1200px 600px at 20% -10%, #1b2740 0%, transparent 60%),
+      radial-gradient(900px 500px at 90% 110%, #17233a 0%, transparent 55%),
+      var(--bg);
+    color:var(--ink);
+    font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Source Han Sans SC",sans-serif;
+    display:flex; flex-direction:column; align-items:center;
+  }
+  main{width:min(960px,94vw); padding:28px 0 120px; flex:1;}
+  header{text-align:center; padding:34px 0 6px;}
+  header h1{font-size:clamp(26px,4vw,40px); margin:0 0 8px; letter-spacing:1px;}
+  header h1 b{color:var(--amber);}
+  header .sub{color:var(--muted); font-size:15px; margin:0;}
+
+  /* ---------- 场景 ---------- */
+  .scene{display:none;}
+  .scene.active{display:block; animation:fadeIn .45s ease;}
+  @keyframes fadeIn{from{opacity:0; transform:translateY(14px);} to{opacity:1; transform:none;}}
+
+  .panel{
+    background:linear-gradient(180deg,var(--card),#1a2436);
+    border:1px solid #33415c; border-radius:20px;
+    padding:30px 26px; margin-top:22px; text-align:center;
+    box-shadow:0 18px 50px rgba(0,0,0,.35);
+  }
+  .panel h2{margin:2px 0 6px; font-size:clamp(20px,3vw,28px);}
+  .panel .lead{color:var(--muted); font-size:15px; line-height:1.9; margin:10px auto 4px; max-width:640px;}
+  .lead .hl{color:var(--amber); font-weight:700;}
+  .lead .hlb{color:var(--sky); font-weight:700;}
+  code.k{
+    background:#0c1424; border:1px solid #33415c; border-radius:8px;
+    padding:2px 10px; color:var(--amber); font-size:.95em; font-family:ui-monospace,Menlo,Consolas,monospace;
+  }
+
+  /* ---------- 灯泡 ---------- */
+  .bulbs{display:flex; justify-content:center; gap:clamp(14px,4vw,44px); flex-wrap:wrap; margin:26px 0 6px;}
+  .bulb{cursor:pointer; user-select:none; text-align:center; width:78px; position:relative;}
+  .bulb .glass{
+    width:58px; height:58px; border-radius:50%; margin:0 auto;
+    background:radial-gradient(circle at 35% 30%, #39415a, #1d2330 72%);
+    border:3px solid #3d465a; transition:background .3s, box-shadow .3s, border-color .3s;
+  }
+  .bulb .base{width:26px; height:13px; margin:-1px auto 8px; background:#4b5a72; border-radius:0 0 6px 6px;}
+  .bulb .tag{font-size:13px; color:var(--muted);}
+  .bulb.on .glass{
+    background:radial-gradient(circle at 35% 30%, #fff8dc, var(--amber) 62%);
+    border-color:#fde68a;
+    box-shadow:0 0 18px 6px var(--glow), 0 0 52px 20px rgba(251,191,36,.22);
+  }
+  .bulb.on .tag{color:var(--amber); font-weight:700;}
+  .bulb.pop .glass{animation:pop .38s ease;}
+  @keyframes pop{0%{transform:scale(1);} 45%{transform:scale(1.22);} 100%{transform:scale(1);}}
+
+  .float{
+    position:absolute; top:-34px; left:50%; transform:translateX(-50%);
+    color:var(--green); font-weight:800; font-size:20px; pointer-events:none;
+    animation:floatUp 1s ease forwards;
+  }
+  @keyframes floatUp{from{opacity:0; transform:translate(-50%,8px);} 25%{opacity:1;} to{opacity:0; transform:translate(-50%,-30px);}}
+
+  /* ---------- 场景0 开场 ---------- */
+  .hero{padding:64px 20px 50px; text-align:center;}
+  .hero .zero-one{font-size:clamp(64px,12vw,120px); font-weight:900; letter-spacing:.18em;
+    background:linear-gradient(180deg,#fff, #fbbf24 70%); -webkit-background-clip:text; background-clip:text; color:transparent;
+    text-shadow:0 0 60px rgba(251,191,36,.15);}
+  .hero p{color:var(--muted); font-size:17px; line-height:2;}
+
+  .btn{
+    appearance:none; border:1px solid #3b4c6b; background:#22304a; color:var(--ink);
+    font-size:16px; padding:11px 26px; border-radius:12px; cursor:pointer; margin:6px 6px 0;
+    transition:transform .15s, background .2s, border-color .2s; font-family:inherit;
+  }
+  .btn:hover{background:#2b3c5c; transform:translateY(-1px);}
+  .btn:active{transform:translateY(1px);}
+  .btn.primary{background:linear-gradient(180deg,#f6c33a,#eda400); border-color:#f6c33a; color:#3a2a00; font-weight:800;}
+  .btn.big{font-size:18px; padding:13px 40px;}
+  .btn:disabled{opacity:.35; cursor:not-allowed; transform:none;}
+
+  /* ---------- 场景1 大灯 ---------- */
+  .bigbulb{margin:34px auto 10px; cursor:pointer; width:150px; user-select:none;}
+  .bigbulb .glass{
+    width:130px; height:130px; border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, #39415a, #1d2330 72%);
+    border:5px solid #3d465a; transition:all .3s; margin:0 auto;
+  }
+  .bigbulb .base{width:52px; height:24px; margin:2px auto 0; background:#4b5a72; border-radius:0 0 8px 8px;}
+  .bigbulb.on .glass{
+    background:radial-gradient(circle at 35% 30%, #fff8dc, var(--amber) 62%); border-color:#fde68a;
+    box-shadow:0 0 34px 12px var(--glow), 0 0 110px 44px rgba(251,191,36,.25);
+  }
+  .bitread{font-size:64px; font-weight:900; margin-top:6px; color:var(--muted);}
+  .bitread.on{color:var(--amber); text-shadow:0 0 30px rgba(251,191,36,.5);}
+
+  /* ---------- 场景2 数位 ---------- */
+  .digitrow{display:flex; justify-content:center; align-items:flex-end; gap:26px; margin:30px 0 8px;}
+  .digitwrap{text-align:center;}
+  .digitwrap .lbl{font-size:13px; color:var(--muted); margin-bottom:8px;}
+  .digit{
+    width:86px; height:110px; border-radius:16px; margin:0 auto;
+    background:#0c1424; border:2px solid #33415c;
+    display:flex; align-items:center; justify-content:center;
+    font-size:64px; font-weight:900; font-family:ui-monospace,Menlo,Consolas,monospace;
+    transition:border-color .2s;
+  }
+  .digit.pop{animation:dpop .3s ease;}
+  @keyframes dpop{45%{transform:scale(1.12);}}
+  .digit.hot{border-color:var(--pink); color:var(--pink);}
+  .carrybadge{
+    display:inline-block; margin-top:14px; padding:9px 22px; border-radius:999px;
+    font-size:16px; font-weight:700; opacity:0; transform:translateY(6px); transition:all .4s;
+  }
+  .carrybadge.show{opacity:1; transform:none;}
+  .carrybadge.warn{background:rgba(244,114,182,.14); color:var(--pink); border:1px solid rgba(244,114,182,.4);}
+  .carrybadge.ok{background:rgba(74,222,128,.12); color:var(--green); border:1px solid rgba(74,222,128,.4);}
+
+  /* ---------- 场景3 面值卡 ---------- */
+  .pvgrid{display:flex; justify-content:center; gap:clamp(12px,3.5vw,40px); flex-wrap:wrap; margin:24px 0 4px;}
+  .pv{width:88px;}
+  .pv .bulb{width:100%;}
+  .pvcard{
+    margin-top:10px; height:64px; border-radius:14px; perspective:600px; cursor:default;
+  }
+  .pvcard .inner{
+    width:100%; height:100%; display:flex; align-items:center; justify-content:center;
+    font-size:30px; font-weight:900; border-radius:14px;
+    background:#0c1424; border:2px solid #33415c; color:var(--muted);
+    transition:transform .5s cubic-bezier(.2,.7,.3,1.2), background .3s, color .3s, border-color .3s;
+    transform-style:preserve-3d;
+  }
+  .pvcard.revealed .inner{transform:rotateY(360deg); background:rgba(56,189,248,.1); border-color:var(--sky); color:var(--sky);}
+  .pv:nth-child(1) .pvcard.revealed .inner{color:var(--violet); border-color:var(--violet); background:rgba(167,139,250,.1);}
+  .pv:nth-child(2) .pvcard.revealed .inner{color:var(--pink); border-color:var(--pink); background:rgba(244,114,182,.1);}
+  .pv:nth-child(3) .pvcard.revealed .inner{color:var(--green); border-color:var(--green); background:rgba(74,222,128,.1);}
+  .pv:nth-child(4) .pvcard.revealed .inner{color:var(--amber); border-color:var(--amber); background:rgba(251,191,36,.1);}
+  .pv .arrow{margin-top:8px; font-size:13px; color:var(--muted);}
+
+  /* ---------- 场景4 计数器 ---------- */
+  .readout{display:flex; justify-content:center; align-items:center; gap:18px; flex-wrap:wrap; margin-top:6px;}
+  .binstr{
+    font-family:ui-monospace,Menlo,Consolas,monospace; font-size:clamp(28px,4.5vw,40px); font-weight:800;
+    letter-spacing:.35em; color:var(--amber); background:#0c1424; border:2px solid #33415c;
+    border-radius:14px; padding:8px 18px 8px calc(18px + .35em);
+  }
+  .deceq{font-size:26px; color:var(--muted); font-weight:700;}
+  .decval{font-size:clamp(36px,6vw,52px); font-weight:900; color:var(--sky);}
+  .eq{margin-top:10px; font-size:17px; color:var(--muted); min-height:26px;}
+  .eq .chip{
+    display:inline-block; background:rgba(56,189,248,.12); border:1px solid rgba(56,189,248,.35);
+    color:var(--sky); border-radius:8px; padding:2px 10px; margin:0 3px; font-weight:700;
+  }
+  .ctrl{margin-top:18px;}
+  .ctrl .btn.round{font-size:20px; font-weight:900; width:56px; padding:11px 0;}
+  input[type=range]{
+    width:min(420px,80vw); display:block; margin:22px auto 0; accent-color:var(--amber); height:30px;
+  }
+
+  /* ---------- 场景5 字节 ---------- */
+  .bytedec{font-size:clamp(48px,8vw,72px); font-weight:900; color:var(--amber);
+    text-shadow:0 0 40px rgba(251,191,36,.35); margin-top:8px;}
+  .byteeq{margin-top:4px; min-height:30px; font-size:16px;}
+  .byteeq .chip{
+    display:inline-block; background:rgba(251,191,36,.12); border:1px solid rgba(251,191,36,.35);
+    color:var(--amber); border-radius:8px; padding:2px 10px; margin:2px 3px; font-weight:700;
+  }
+  .bytebadge{
+    display:inline-block; margin-top:16px; padding:6px 16px; border-radius:999px; font-size:13px;
+    background:rgba(167,139,250,.12); border:1px solid rgba(167,139,250,.4); color:var(--violet);
+  }
+  .bulbs.small .glass{width:46px; height:46px;}
+  .bulbs.small .bulb{width:64px;}
+
+  /* ---------- 场景6 ---------- */
+  .whygrid{display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:16px; margin-top:22px; text-align:left;}
+  .why{
+    background:var(--card2); border:1px solid #33415c; border-radius:16px; padding:20px 18px;
+  }
+  .why .ic{font-size:30px;}
+  .why h3{margin:10px 0 8px; font-size:17px; color:var(--sky);}
+  .why p{margin:0; color:var(--muted); font-size:14px; line-height:1.9;}
+  .why .hl{color:var(--amber); font-weight:700;}
+  .egg{
+    margin-top:20px; background:rgba(74,222,128,.06); border:1px dashed rgba(74,222,128,.4);
+    border-radius:16px; padding:18px;
+  }
+  .egg .t{color:var(--green); font-weight:800; margin-bottom:8px;}
+  .eggrow{display:flex; justify-content:center; align-items:center; gap:14px; flex-wrap:wrap; font-size:20px; font-weight:800;}
+  .minibulbs{display:flex; gap:8px;}
+  .mini{
+    width:30px; height:30px; border-radius:50%; background:#1d2330; border:2px solid #3d465a;
+    display:flex; align-items:center; justify-content:center; font-size:13px; color:var(--muted);
+    font-family:ui-monospace,monospace;
+  }
+  .mini.on{background:radial-gradient(circle at 35% 30%, #fff8dc, var(--amber) 62%); border-color:#fde68a; color:#4a3300; font-weight:900;
+    box-shadow:0 0 12px 3px var(--glow);}
+  .homework{margin-top:22px; color:var(--muted); font-size:15px;}
+  .homework b{color:var(--amber);}
+  /* ---------- 场景6：拼数游戏 ---------- */
+  .target{font-size:clamp(44px,7vw,64px); font-weight:900; color:var(--pink);
+    text-shadow:0 0 34px rgba(244,114,182,.35); margin-top:4px;}
+  .gameline{font-size:18px; color:var(--muted); margin-top:2px;}
+  .gameline b{color:var(--amber);}
+  .gameline b.pink{color:var(--pink);}
+  .winbar{margin-top:12px; font-size:19px; font-weight:800; color:var(--green);
+    opacity:0; transform:scale(.9); transition:all .35s; min-height:30px;}
+  .winbar.show{opacity:1; transform:none;}
+  .bulb.hintp .glass{box-shadow:0 0 0 4px rgba(74,222,128,.85), 0 0 20px 7px rgba(74,222,128,.45) !important;}
+  .confetti{position:fixed; top:-44px; font-size:26px; z-index:99; pointer-events:none;
+    animation:fall 2.4s linear forwards;}
+  @keyframes fall{to{transform:translateY(112vh) rotate(340deg); opacity:.5;}}
+
+
+  /* ---------- 场景5：除 2 取余 ---------- */
+  .exbar{display:flex; justify-content:center; align-items:center; gap:8px; flex-wrap:wrap; margin:14px 0 2px;}
+  .exbar input{
+    width:92px; background:#0c1424; border:2px solid #33415c; border-radius:10px; color:var(--ink);
+    font-size:16px; padding:8px 10px; text-align:center; font-family:inherit;}
+  .exbar input:focus{outline:none; border-color:var(--amber);}
+  .dvladder{display:flex; flex-direction:column; align-items:center; gap:7px; margin:18px auto 4px; min-height:56px;}
+  .dvrow{
+    display:flex; align-items:center; justify-content:center; gap:12px; min-width:300px;
+    background:#0c1424; border:2px solid #33415c; border-radius:12px; padding:9px 18px;
+    font-family:ui-monospace,Menlo,Consolas,monospace; font-size:23px;
+    opacity:0; transform:translateY(-10px); transition:all .35s;}
+  .dvrow.show{opacity:1; transform:none;}
+  .dvrow.cur{border-color:var(--amber); box-shadow:0 0 16px rgba(251,191,36,.28);}
+  .dvrow.pop{animation:dpop .3s ease;}
+  .dvrow .n{font-weight:800; min-width:2.4ch; text-align:right;}
+  .dvrow .dd{color:var(--amber); font-weight:800;}
+  .dvrow .sep{color:#5b6b87;}
+  .dvrow .q{color:var(--green); font-weight:800; min-width:2.4ch; text-align:left;}
+  .dvrow .qm{color:var(--muted);}
+  .dvrow .rdots{color:#5b6b87;}
+  .remv{
+    display:inline-flex; align-items:center; justify-content:center; min-width:32px; height:32px;
+    border-radius:8px; color:var(--pink); font-weight:900; transition:all .3s;}
+  .remv.pick{
+    color:var(--green); background:rgba(74,222,128,.12);
+    box-shadow:0 0 0 2px rgba(74,222,128,.55); transform:scale(1.15);}
+  .dvstop{margin-top:10px; font-size:15px; color:var(--muted); min-height:24px; font-weight:700;}
+  .dvstop b{color:var(--pink);}
+  .dvread{display:flex; justify-content:center; align-items:center; gap:12px; flex-wrap:wrap; margin-top:8px; min-height:48px;}
+  .dvread .lab{color:var(--muted); font-size:15px;}
+  .dvread .lab b{color:var(--pink);}
+  .dvread .binstr{font-size:26px; padding:6px 14px 6px calc(14px + .35em);}
+  .dvread .binstr span{display:inline-block; animation:dpop .3s ease;}
+  .dvfinal{display:none; margin-top:14px;}
+  .dvfinal.show{display:block; animation:fadeIn .45s ease;}
+
+  /* ---------- 底部导航 ---------- */
+  nav{
+    position:fixed; left:0; right:0; bottom:0; z-index:10;
+    background:rgba(15,23,42,.85); backdrop-filter:blur(10px);
+    border-top:1px solid #293a56; padding:12px 16px 14px;
+    display:flex; justify-content:center; align-items:center; gap:14px; flex-wrap:wrap;
+  }
+  .dots{display:flex; gap:8px; align-items:center;}
+  .dot{
+    width:12px; height:12px; border-radius:50%; background:#33415c; cursor:pointer; padding:0; border:none;
+    transition:all .25s;
+  }
+  .dot.cur{background:var(--amber); box-shadow:0 0 10px rgba(251,191,36,.7); transform:scale(1.25);}
+  .scenetitle{font-size:13px; color:var(--muted); min-width:120px; text-align:center;}
+  .counter{font-size:12px; color:#5b6b87; font-family:ui-monospace,monospace;}
+  .hint{color:#5b6b87; font-size:12px; margin-top:10px;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>二进制：计算机的<b>秘密语言</b></h1>
+  <p class="sub">一排小灯泡，看懂计算机怎么数数 · 适合课堂演示</p>
+</header>
+
+<main>
+
+  <!-- 场景 0：开场 -->
+  <section class="scene hero active" data-title="开场">
+    <div class="zero-one">0 1</div>
+    <p>只用 <b>0</b> 和 <b>1</b> 两个数字，能数到 100 吗？能表示一张照片吗？<br>
+    计算机的世界里真的只有这两个数字——今天我们用几盏灯，看懂它的秘密。</p>
+    <button class="btn primary big" data-go="1">开始点灯 →</button>
+  </section>
+
+  <!-- 场景 1：一盏灯 -->
+  <section class="scene" data-title="① 一盏灯，两种状态">
+    <div class="panel">
+      <h2>一盏灯，只有两种状态</h2>
+      <div class="bigbulb" id="bigbulb">
+        <div class="glass"></div><div class="base"></div>
+      </div>
+      <div class="bitread" id="bitread">0</div>
+      <p class="lead">
+        灭了就是 <span class="hl">0</span>，亮了就是 <span class="hl">1</span>——没有第三种可能。<br>
+        计算机的芯片里，住着几十亿个这样的"小开关"（大名：晶体管）。每个小开关只会两件事：<b>开</b> 和 <b>关</b>。
+      </p>
+      <p class="hint">💡 点点这盏灯试试</p>
+    </div>
+  </section>
+
+  <!-- 场景 2：十进制 -->
+  <section class="scene" data-title="② 先看十进制">
+    <div class="panel">
+      <h2>先看我们熟悉的十进制</h2>
+      <div class="digitrow">
+        <div class="digitwrap"><div class="lbl">十位</div><div class="digit" id="dT">0</div></div>
+        <div class="digitwrap"><div class="lbl">个位</div><div class="digit" id="dO">0</div></div>
+      </div>
+      <div><span class="carrybadge warn" id="badge2">个位最大只能到 9 ……</span></div>
+      <p class="lead">
+        我们有 0~9 <b>十个</b>数字，数到 9 再加 1，个位装不下了，就<span class="hl">逢十进一</span>，写作 <code class="k">10</code>。<br>
+        二进制只有 0 和 1 <b>两个</b>数字，数到 1 再加 1，个位也装不下了——那就是<span class="hlb">逢二进一</span>：
+        <code class="k">1 + 1 = 10</code>（读作"一零"，等于十进制的 2）。
+      </p>
+      <button class="btn" id="replay2">▶ 再看一遍数数</button>
+    </div>
+  </section>
+
+  <!-- 场景 3：一排灯的面值 -->
+  <section class="scene" data-title="③ 每盏灯值多少">
+    <div class="panel">
+      <h2>一排灯，每盏值多少？</h2>
+      <div class="pvgrid" id="pvgrid">
+        <div class="pv"><div class="bulb"><div class="glass"></div><div class="base"></div><div class="tag">第 4 盏</div></div><div class="pvcard"><div class="inner">?</div></div><div class="arrow">×2 ↙</div></div>
+        <div class="pv"><div class="bulb"><div class="glass"></div><div class="base"></div><div class="tag">第 3 盏</div></div><div class="pvcard"><div class="inner">?</div></div><div class="arrow">×2 ↙</div></div>
+        <div class="pv"><div class="bulb"><div class="glass"></div><div class="base"></div><div class="tag">第 2 盏</div></div><div class="pvcard"><div class="inner">?</div></div><div class="arrow">×2 ↙</div></div>
+        <div class="pv"><div class="bulb"><div class="glass"></div><div class="base"></div><div class="tag">第 1 盏</div></div><div class="pvcard"><div class="inner">?</div></div><div class="arrow"></div></div>
+      </div>
+      <p class="lead">
+        每盏灯都像一枚硬币，有自己的<span class="hl">面值</span>：最右边是 1，往左每换一盏就<span class="hl">×2 翻倍</span>——
+        <b>1、2、4、8</b>……（十进制的个、十、百、千，不就是每次 ×10 吗？）<br>
+        灯<b>亮</b> ＝ 把这盏灯的面值<b>加进来</b>；灯<b>灭</b> ＝ <b>不加</b>。
+      </p>
+    </div>
+  </section>
+
+  <!-- 场景 4：点灯拼数字 -->
+  <section class="scene" data-title="④ 点灯拼数字">
+    <div class="panel">
+      <h2>点灯拼数字，按 ＋1 看进位</h2>
+      <div class="bulbs" id="bulbs4"></div>
+      <div class="readout">
+        <span class="binstr" id="bin4">0000</span>
+        <span class="deceq">=</span>
+        <span class="decval" id="dec4">0</span>
+      </div>
+      <div class="eq" id="eq4"></div>
+      <div class="ctrl">
+        <button class="btn round" id="minus4">−</button>
+        <button class="btn primary round" id="plus4">＋</button>
+      </div>
+      <input type="range" id="slider4" min="0" max="15" value="0" aria-label="选择 0 到 15">
+      <p class="lead">
+        一直按 <b>＋</b>，盯着右边那盏灯：1 → 10 → 11 → 100 ……<br>
+        右边装不下，就<span class="hl">向左进位</span>——这就是二进制的<span class="hlb">逢二进一</span>。
+      </p>
+    </div>
+  </section>
+
+  <!-- 场景 5：除 2 取余 -->
+  <section class="scene" data-title="⑤ 除 2 取余变二进制">
+    <div class="panel">
+      <h2>反过来：十进制怎么变二进制？</h2>
+      <p class="lead">
+        不停地<span class="hl">除以 2</span>：<b>商往下写</b>，<b>余数往右记</b>；
+        除到商为 <b>0</b> 停下，把余数<span class="hlb">从下往上</span>读出来，就是二进制！
+      </p>
+      <div class="exbar">
+        <button class="btn" data-ex="11">例1：11</button>
+        <button class="btn" data-ex="22">例2：22</button>
+        <button class="btn" data-ex="100">例3：100</button>
+        <input type="number" id="numD" min="1" max="255" value="11" aria-label="输入 1 到 255">
+        <button class="btn primary" id="goD">开始</button>
+      </div>
+      <div class="dvladder" id="ladderD"></div>
+      <div class="dvstop" id="stopD"></div>
+      <div class="dvread" id="readD"></div>
+      <div class="dvfinal" id="finalD">
+        <div class="readout">
+          <span class="binstr" id="binD"></span>
+          <span class="deceq">=</span>
+          <span class="decval" id="decD"></span>
+        </div>
+        <div class="eq" id="eqD"></div>
+        <div class="bulbs small" id="bulbsD"></div>
+      </div>
+      <div class="ctrl">
+        <button class="btn primary" id="stepD">下一步 ▸</button>
+        <button class="btn" id="autoD">▶ 自动播放</button>
+        <button class="btn" id="redoD">🔁 重做这题</button>
+      </div>
+      <p class="hint">每按一次「下一步」做一步除法——先自己猜商和余数，再按出来对答案</p>
+    </div>
+  </section>
+
+  <!-- 场景 6：一个字节 -->
+  <section class="scene" data-title="⑥ 8 盏灯 = 1 字节">
+    <div class="panel">
+      <h2>8 盏灯，就是一个"字节"</h2>
+      <div class="bulbs small" id="bulbs8"></div>
+      <div class="bytedec" id="dec8">0</div>
+      <div class="byteeq" id="eq8"></div>
+      <div><span class="bytebadge">1 字节（byte）= 8 个二进制位（bit），能表示 0 ~ 255</span></div>
+      <div class="ctrl">
+        <button class="btn" id="clear8">全灭</button>
+        <button class="btn" id="fill8">全亮</button>
+        <button class="btn" id="rand8">🎲 随便点一排</button>
+      </div>
+      <p class="lead">
+        你手机里的照片、你听的歌、发的每一条消息，拆到最后都是这样一排排的 <span class="hl">0 和 1</span>。
+      </p>
+      <p class="hint">💡 直接点灯泡，算算它等于多少</p>
+    </div>
+  </section>
+
+  <!-- 场景 7：拼数游戏 -->
+  <section class="scene" data-title="⑦ 游戏：拼出目标数">
+    <div class="panel">
+      <h2>🎯 小游戏：点亮目标数</h2>
+      <div class="target" id="targetG">?</div>
+      <div class="gameline">目标：<b class="pink" id="targetG2">?</b> ｜ 你点亮了：<b id="curG">0</b></div>
+      <div class="bulbs small" id="bulbsG"></div>
+      <div class="winbar" id="winG"></div>
+      <div class="ctrl">
+        <button class="btn" id="newGe">🌱 简单题（1~15）</button>
+        <button class="btn" id="newGh">🔥 挑战题（16~255）</button>
+        <button class="btn" id="hintG">💡 不会了？提示一下</button>
+      </div>
+      <p class="lead">
+        小窍门：先点<span class="hlb">不超过目标</span>的最大那盏，再把剩下的补齐——大面值先点，又快又准！
+      </p>
+      <p class="hint">💡 直接点灯泡就行，拼对了有惊喜</p>
+    </div>
+  </section>
+
+  <!-- 场景 8：为什么 -->
+  <section class="scene" data-title="⑧ 为什么用二进制">
+    <div class="panel">
+      <h2>计算机为什么偏爱二进制？</h2>
+      <div class="whygrid">
+        <div class="why"><div class="ic">🔌</div><h3>电路最好造</h3>
+          <p>芯片里的晶体管就像小开关：<span class="hl">通电 = 1，断电 = 0</span>。只要两种状态，造起来最简单、跑得最快。</p></div>
+        <div class="why"><div class="ic">🛡️</div><h3>最不容易出错</h3>
+          <p>只要分清"有电"和"没电"两种情况，就不容易弄错。要是用 0~9 十种电压表示数字，差一点点就会认错。</p></div>
+        <div class="why"><div class="ic">🧮</div><h3>多了就无所不能</h3>
+          <p>一个芯片有<span class="hl">几十亿</span>个小开关。开关排成排，就能表示任何数字、文字、图片和声音。</p></div>
+      </div>
+      <div class="egg">
+        <div class="t">🥚 彩蛋：字母 A 的秘密</div>
+        <div class="eggrow">
+          <span>A</span><span>→</span><span>编号 65</span><span>→</span>
+          <span class="minibulbs" id="miniA"></span>
+        </div>
+        <p class="lead" style="font-size:14px;">每个字母都有一个"号码"（就像每个同学都有学号）。A 的号码是 65，写成二进制就是这 8 盏灯——计算机就这样"记住"了 A。</p>
+      </div>
+      <p class="homework">📝 课后挑战：回到第 ⑦ 幕继续玩，用灯泡<b>拼出你的年龄</b>，再拼出最大的 <b>255</b>！</p>
+    </div>
+  </section>
+
+</main>
+
+<nav>
+  <button class="btn" id="prev">← 上一步</button>
+  <div class="dots" id="dots"></div>
+  <span class="scenetitle" id="scenetitle">开场</span>
+  <button class="btn primary" id="next">下一步 →</button>
+  <span class="counter" id="counter">1 / 9</span>
+</nav>
+
+<script>
+(function(){
+  "use strict";
+  const $ = (s, el=document) => el.querySelector(s);
+  const $$ = (s, el=document) => [...el.querySelectorAll(s)];
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+  /* ---------- 场景管理 ---------- */
+  const scenes = $$(".scene");
+  const dotsEl = $("#dots");
+  let cur = 0, token = 0;
+
+  scenes.forEach((_, i) => {
+    const d = document.createElement("button");
+    d.className = "dot"; d.setAttribute("aria-label", "第 " + (i+1) + " 幕");
+    d.onclick = () => go(i);
+    dotsEl.appendChild(d);
+  });
+  const dots = $$(".dot", dotsEl);
+
+  function go(i){
+    i = Math.max(0, Math.min(scenes.length - 1, i));
+    cur = i;
+    token++;
+    scenes.forEach((s, k) => s.classList.toggle("active", k === i));
+    dots.forEach((d, k) => d.classList.toggle("cur", k === i));
+    $("#scenetitle").textContent = scenes[i].dataset.title || "";
+    $("#counter").textContent = (i + 1) + " / " + scenes.length;
+    $("#prev").disabled = i === 0;
+    $("#next").disabled = i === scenes.length - 1;
+    (enter[i] || function(){})();
+  }
+  $("#prev").onclick = () => go(cur - 1);
+  $("#next").onclick = () => go(cur + 1);
+  $$("[data-go]").forEach(b => b.onclick = () => go(+b.dataset.go));
+  document.addEventListener("keydown", e => {
+    if(e.key === "ArrowRight") go(cur + 1);
+    if(e.key === "ArrowLeft") go(cur - 1);
+  });
+
+  function pop(el){ el.classList.remove("pop"); void el.offsetWidth; el.classList.add("pop"); }
+
+  /* ---------- 场景1：大灯 ---------- */
+  const bigbulb = $("#bigbulb"), bitread = $("#bitread");
+  bigbulb.onclick = () => {
+    bigbulb.classList.toggle("on");
+    const on = bigbulb.classList.contains("on");
+    bitread.textContent = on ? "1" : "0";
+    bitread.classList.toggle("on", on);
+  };
+
+  /* ---------- 场景2：十进制数数 ---------- */
+  const dT = $("#dT"), dO = $("#dO"), badge2 = $("#badge2");
+  function setD(el, v){ el.textContent = v; pop(el); }
+  async function decDemo(){
+    const my = ++demoTok;
+    dT.textContent = "0"; dO.textContent = "0";
+    badge2.className = "carrybadge warn"; badge2.classList.remove("show");
+    for(let n = 1; n <= 9; n++){
+      if(my !== demoTok) return;
+      setD(dO, n); await sleep(600);
+    }
+    if(my !== demoTok) return;
+    badge2.textContent = "个位最大只能到 9，再加 1 呢？"; badge2.classList.add("show");
+    dO.classList.add("hot"); await sleep(1100);
+    if(my !== demoTok) return;
+    setD(dO, 0); dO.classList.remove("hot");
+    setD(dT, 1);
+    badge2.className = "carrybadge ok show";
+    badge2.textContent = "✔ 逢十进一：变成 10";
+  }
+  let demoTok = 0;
+  $("#replay2").onclick = decDemo;
+
+  /* ---------- 场景3：翻卡 ---------- */
+  function revealPV(){
+    const cards = $$("#pvgrid .pvcard");
+    cards.forEach(c => c.classList.remove("revealed"));
+    [3, 2, 1, 0].forEach((idx, k) => {
+      setTimeout(() => {
+        const c = cards[idx];
+        c.querySelector(".inner").textContent = [8, 4, 2, 1][idx];
+        c.classList.add("revealed");
+      }, 400 + k * 550);
+    });
+  }
+
+  /* ---------- 场景4：4 位计数器 ---------- */
+  const V4 = [8, 4, 2, 1];
+  let bits4 = [0, 0, 0, 0], busy4 = false;
+  const wrap4 = $("#bulbs4");
+  V4.forEach((v, i) => {
+    const b = document.createElement("div");
+    b.className = "bulb";
+    b.innerHTML = '<div class="glass"></div><div class="base"></div><div class="tag">面值 ' + v + '</div>';
+    b.onclick = () => { if(!busy4){ bits4[i] ^= 1; setB4(i, bits4[i]); } };
+    wrap4.appendChild(b);
+  });
+  const bulbs4 = $$(".bulb", wrap4);
+  function val4(){ return bits4.reduce((s, b, i) => s + b * V4[i], 0); }
+  function refresh4(){
+    const v = val4();
+    $("#bin4").textContent = bits4.join("");
+    $("#dec4").textContent = v;
+    const lit = V4.filter((_, i) => bits4[i]);
+    $("#eq4").innerHTML = v === 0 ? "所有灯都灭，就是 0" :
+      lit.map(x => '<span class="chip">' + x + '</span>').join(" + ") + " = " + v;
+    $("#slider4").value = v;
+    $("#plus4").disabled = v >= 15; $("#minus4").disabled = v <= 0;
+  }
+  function setB4(i, on){
+    bulbs4[i].classList.toggle("on", !!on); pop(bulbs4[i]);
+    refresh4();
+  }
+  function floatTag(i, txt){
+    const f = document.createElement("div");
+    f.className = "float"; f.textContent = txt;
+    bulbs4[i].appendChild(f); setTimeout(() => f.remove(), 1000);
+  }
+  async function inc4(){
+    if(busy4 || val4() >= 15) return;
+    busy4 = true; floatTag(3, "+1"); await sleep(320);
+    let i = 3;
+    while(i >= 0 && bits4[i] === 1){ bits4[i] = 0; setB4(i, 0); i--; await sleep(430); }
+    if(i >= 0){ bits4[i] = 1; setB4(i, 1); }
+    busy4 = false;
+  }
+  async function dec4(){
+    if(busy4 || val4() <= 0) return;
+    busy4 = true; floatTag(3, "−1"); await sleep(320);
+    let i = 3;
+    while(i >= 0 && bits4[i] === 0){ bits4[i] = 1; setB4(i, 1); i--; await sleep(430); }
+    if(i >= 0){ bits4[i] = 0; setB4(i, 0); }
+    busy4 = false;
+  }
+  $("#plus4").onclick = inc4;
+  $("#minus4").onclick = dec4;
+  $("#slider4").oninput = e => {
+    if(busy4) return;
+    let v = +e.target.value;
+    bits4 = V4.map(x => { const b = v >= x ? 1 : 0; v -= b * x; return b; });
+    bits4.forEach((b, i) => bulbs4[i].classList.toggle("on", !!b));
+    refresh4();
+  };
+  refresh4();
+
+  /* ---------- 场景5：除 2 取余 ---------- */
+  const ladderD = $("#ladderD");
+  let stD = null, doneD = false, autoTokD = 0, loadedD = false;
+
+  function buildStepsD(n){
+    const s = [];
+    let x = n;
+    while(x > 0){ const q = Math.floor(x / 2), r = x % 2; s.push({ n: x, q: q, r: r }); x = q; }
+    return s;
+  }
+  function rowHtmlD(st, doneRow){
+    return '<span class="n">' + st.n + '</span><span class="dd">÷ 2</span><span class="sep">=</span>' +
+      (doneRow ? '<span class="q">' + st.q + '</span><span class="rdots">……</span><span class="remv">' + st.r + '</span>'
+               : '<span class="qm">?</span>');
+  }
+  function addRowD(st){
+    const row = document.createElement("div");
+    row.className = "dvrow cur";
+    row.innerHTML = rowHtmlD(st, false);
+    ladderD.appendChild(row);
+    requestAnimationFrame(() => requestAnimationFrame(() => row.classList.add("show")));
+    return row;
+  }
+  function loadD(n){
+    autoTokD++;
+    stD = { n: n, steps: buildStepsD(n), i: 0, phase: "div", picked: 0 };
+    doneD = false;
+    ladderD.innerHTML = "";
+    $("#stopD").innerHTML = "";
+    $("#readD").innerHTML = "";
+    $("#finalD").classList.remove("show");
+    $("#bulbsD").innerHTML = "";
+    $("#stepD").disabled = false;
+    $("#stepD").textContent = "下一步 ▸";
+    addRowD(stD.steps[0]);
+  }
+  function stepD(){
+    if(!stD || doneD) return;
+    const rows = $$(".dvrow", ladderD);
+    if(stD.phase === "div"){
+      const st = stD.steps[stD.i];
+      rows[stD.i].innerHTML = rowHtmlD(st, true);
+      rows[stD.i].classList.remove("cur");
+      pop(rows[stD.i]);
+      if(st.q === 0){
+        stD.phase = "read";
+        $("#stopD").innerHTML = "商变成 <b>0</b>，除法结束！接下来把余数<b>从下往上</b>读出来 👇";
+        $("#stepD").textContent = "读一个余数 ▸";
+      } else {
+        stD.i++;
+        addRowD(stD.steps[stD.i]);
+      }
+    } else if(stD.picked < stD.steps.length){
+      const rowIdx = stD.steps.length - 1 - stD.picked;
+      const remEl = rows[rowIdx] && rows[rowIdx].querySelector(".remv");
+      if(remEl) remEl.classList.add("pick");
+      if(!$("#readD .lab")){
+        $("#readD").innerHTML = '<span class="lab">余数<b>从下往上</b>读：</span><span class="binstr" id="readBinD"></span>';
+      }
+      const sp = document.createElement("span");
+      sp.textContent = stD.steps[rowIdx].r;
+      $("#readBinD").appendChild(sp);
+      stD.picked++;
+      if(stD.picked === stD.steps.length) finishD();
+    }
+  }
+  function finishD(){
+    doneD = true;
+    $("#stepD").disabled = true;
+    const bits = stD.steps.slice().reverse().map(s => s.r); // 从下往上读：最后一行是最高位
+    $("#binD").textContent = bits.join("");
+    $("#decD").textContent = stD.n;
+    const vals = bits.map((_, k) => Math.pow(2, bits.length - 1 - k));
+    const lit = vals.filter((v, k) => bits[k]);
+    $("#eqD").innerHTML = "验算：" + stD.n + " = " + lit.join(" + ") + " ✓（面值法，见第 ③ 幕）";
+    const wrap = $("#bulbsD");
+    vals.forEach((v, k) => {
+      const b = document.createElement("div");
+      b.className = "bulb" + (bits[k] ? " on" : "");
+      b.innerHTML = '<div class="glass"></div><div class="base"></div><div class="tag">' + v + '</div>';
+      wrap.appendChild(b);
+      setTimeout(() => pop(b), 150 + k * 130);
+    });
+    $("#finalD").classList.add("show");
+  }
+  $("#stepD").onclick = stepD;
+  $("#redoD").onclick = () => loadD(stD ? stD.n : 11);
+  $$("[data-ex]").forEach(b => b.onclick = () => loadD(+b.dataset.ex));
+  $("#goD").onclick = () => {
+    let v = Math.floor(+$("#numD").value || 0);
+    v = Math.max(1, Math.min(255, v));
+    $("#numD").value = v;
+    loadD(v);
+  };
+  $("#autoD").onclick = async () => {
+    if(!stD || doneD) return;
+    const my = ++autoTokD;
+    $("#autoD").disabled = true;
+    while(!doneD && my === autoTokD && ladderD.closest(".scene").classList.contains("active")){
+      stepD();
+      await sleep(stD.phase === "div" ? 1000 : 750);
+    }
+    $("#autoD").disabled = false;
+  };
+
+  /* ---------- 场景6：8 位字节 ---------- */
+  const V8 = [128, 64, 32, 16, 8, 4, 2, 1];
+  let bits8 = new Array(8).fill(0);
+  const wrap8 = $("#bulbs8");
+  V8.forEach((v, i) => {
+    const b = document.createElement("div");
+    b.className = "bulb";
+    b.innerHTML = '<div class="glass"></div><div class="base"></div><div class="tag">' + v + '</div>';
+    b.onclick = () => { bits8[i] ^= 1; b.classList.toggle("on", !!bits8[i]); pop(b); refresh8(); };
+    wrap8.appendChild(b);
+  });
+  const bulbs8 = $$(".bulb", wrap8);
+  function refresh8(){
+    const lit = V8.filter((_, i) => bits8[i]);
+    const v = lit.reduce((a, b) => a + b, 0);
+    $("#dec8").textContent = v;
+    $("#eq8").innerHTML = v === 0 ? "一盏都没亮" :
+      lit.map(x => '<span class="chip">' + x + '</span>').join(" + ") + " = " + v;
+  }
+  function setAll8(on){
+    bits8 = bits8.map(() => on ? 1 : 0);
+    bulbs8.forEach((b, i) => b.classList.toggle("on", on));
+    refresh8();
+  }
+  $("#clear8").onclick = () => setAll8(0);
+  $("#fill8").onclick = () => setAll8(1);
+  $("#rand8").onclick = () => {
+    bits8 = bits8.map(() => Math.random() < 0.5 ? 1 : 0);
+    bulbs8.forEach((b, i) => b.classList.toggle("on", !!bits8[i]));
+    refresh8();
+  };
+  refresh8();
+
+  /* ---------- 场景7：拼数游戏 ---------- */
+  const VG = V8;
+  let bitsG = new Array(8).fill(0), targetG = -1, wonG = false, playedG = false;
+  const wrapG = $("#bulbsG");
+  VG.forEach((v, i) => {
+    const b = document.createElement("div");
+    b.className = "bulb";
+    b.innerHTML = '<div class="glass"></div><div class="base"></div><div class="tag">' + v + '</div>';
+    b.onclick = () => { bitsG[i] ^= 1; b.classList.toggle("on", !!bitsG[i]); pop(b); refreshG(); };
+    wrapG.appendChild(b);
+  });
+  const bulbsG = $$(".bulb", wrapG);
+  function confetti(){
+    const emo = ["🎉", "✨", "⭐", "🎊", "💡"];
+    for(let k = 0; k < 26; k++){
+      const c = document.createElement("div");
+      c.className = "confetti";
+      c.textContent = emo[k % emo.length];
+      c.style.left = (4 + Math.random() * 92) + "vw";
+      c.style.animationDelay = (Math.random() * 0.6).toFixed(2) + "s";
+      document.body.appendChild(c);
+      setTimeout(() => c.remove(), 3400);
+    }
+  }
+  function refreshG(){
+    const lit = VG.filter((_, i) => bitsG[i]);
+    const v = lit.reduce((a, b) => a + b, 0);
+    $("#curG").textContent = v;
+    const w = $("#winG");
+    if(targetG > 0 && v === targetG){
+      if(!wonG){
+        wonG = true;
+        w.innerHTML = "🎉 恭喜你！" + targetG + " = " + lit.join(" + ");
+        w.classList.add("show");
+        confetti();
+      }
+    } else {
+      wonG = false;
+      w.classList.remove("show");
+    }
+  }
+  function newG(min, max){
+    targetG = min + Math.floor(Math.random() * (max - min + 1));
+    bitsG = new Array(8).fill(0);
+    bulbsG.forEach(b => b.classList.remove("on", "hintp"));
+    wonG = false;
+    const w = $("#winG");
+    w.classList.remove("show"); w.textContent = "";
+    $("#targetG").textContent = targetG;
+    $("#targetG2").textContent = targetG;
+    $("#curG").textContent = "0";
+  }
+  $("#newGe").onclick = () => newG(1, 15);
+  $("#newGh").onclick = () => newG(16, 255);
+  $("#hintG").onclick = () => {
+    if(targetG <= 0) return;
+    let rest = targetG;
+    const ans = VG.map(x => { const b = rest >= x ? 1 : 0; rest -= b * x; return b; });
+    bulbsG.forEach((b, i) => {
+      if(ans[i]){
+        b.classList.add("hintp");
+        setTimeout(() => b.classList.remove("hintp"), 1500);
+      }
+    });
+  };
+
+  /* ---------- 场景8：字母 A ---------- */
+  const A = [0, 1, 0, 0, 0, 0, 0, 1]; // 65
+  const mini = $("#miniA");
+  A.forEach(b => {
+    const m = document.createElement("div");
+    m.className = "mini" + (b ? " on" : "");
+    m.textContent = b;
+    mini.appendChild(m);
+  });
+
+  /* ---------- 进场钩子 ---------- */
+  const enter = {
+    2: decDemo,
+    3: revealPV,
+    5: () => { if(!loadedD){ loadedD = true; loadD(11); } },
+    7: () => { if(!playedG){ playedG = true; newG(1, 15); } }
+  };
+
+  go(0);
+})();
+</script>
+</body>
+</html>
